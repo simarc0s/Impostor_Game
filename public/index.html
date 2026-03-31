@@ -243,7 +243,6 @@
       <button class="btn b2 full mt12" id="btn-start" style="display:none" onclick="doStart()">🎮 Iniciar Jogo</button>
       <button class="btn bg full mt8" onclick="addBot()">+ Adicionar Jogador Virtual</button>
       <button class="btn bs full mt8" onclick="leaveToHome()">← Sair da Sala</button>
-      <button class="btn bs full mt8" onclick="leaveToHome()">← Sair da Sala</button>
     </div>
   </div>
 
@@ -357,7 +356,6 @@ let G = {
   pollFailCount: 0,
   rejoining: false,
   voteListBuilt: false,
-  lobbyListBuilt: false,
   resultListBuilt: false
 };
 
@@ -677,22 +675,17 @@ function renderLobby() {
   document.getElementById('l-count').textContent = `${r.players.length}/${r.maxP}`;
 
   const ul = document.getElementById('l-list');
+  ul.innerHTML = '';
   
-  // Only rebuild player list once to prevent flicker
-  if (!G.lobbyListBuilt) {
-    G.lobbyListBuilt = true;
-    ul.innerHTML = '';
-    
-    r.players.forEach((p) => {
-      const host = p.id === r.hostId;
-      const li = document.createElement('li');
-      li.className = 'pitem';
-      li.innerHTML = `<div class="avi" style="background:${host ? 'rgba(255,184,0,.15)' : 'rgba(255,255,255,.06)'}">${p.emoji}</div>
-        <div class="pnm">${p.name}${p.isBot ? ' 🤖' : ''}${p.id === G.meId ? ' (tu)' : ''}</div>
-        <div class="pbdg ${host ? 'host' : ''}">${host ? 'HOST' : 'JOGADOR'}</div>`;
-      ul.appendChild(li);
-    });
-  }
+  r.players.forEach((p) => {
+    const host = p.id === r.hostId;
+    const li = document.createElement('li');
+    li.className = 'pitem';
+    li.innerHTML = `<div class="avi" style="background:${host ? 'rgba(255,184,0,.15)' : 'rgba(255,255,255,.06)'}">${p.emoji}</div>
+      <div class="pnm">${p.name}${p.isBot ? ' 🤖' : ''}${p.id === G.meId ? ' (tu)' : ''}</div>
+      <div class="pbdg ${host ? 'host' : ''}">${host ? 'HOST' : 'JOGADOR'}</div>`;
+    ul.appendChild(li);
+  });
 
   const canStart = r.players.length >= 3;
   const host = isHost();
@@ -945,33 +938,28 @@ function syncUI() {
       break;
     case 'reveal':
       G.voteListBuilt = false;
-      G.lobbyListBuilt = false;
       G.resultListBuilt = false;
       renderReveal();
       nav('s-reveal');
       break;
     case 'discussion':
       G.voteListBuilt = false;
-      G.lobbyListBuilt = false;
       G.resultListBuilt = false;
       renderDiscussion();
       nav('s-disc');
       break;
     case 'vote':
-      G.lobbyListBuilt = false;
       G.resultListBuilt = false;
       buildVoteList();
       nav('s-vote');
       break;
     case 'result':
       G.voteListBuilt = false;
-      G.lobbyListBuilt = false;
       renderResult();
       nav('s-result');
       break;
     default:
       G.voteListBuilt = false;
-      G.lobbyListBuilt = false;
       G.resultListBuilt = false;
       renderLobby();
       nav('s-lobby');

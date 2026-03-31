@@ -1,96 +1,85 @@
 // Pares de palavras relacionadas para o jogo
 const WORD_PAIRS = {
   aleatório: [
-    { wordReal: 'Guitarra', wordFake: 'Violão', hint: 'Também és um instrumento de cordas, muito usado no Brasil' },
-    { wordReal: 'Bicicleta', wordFake: 'Triciclo', hint: 'Também és um meio de transporte com rodas, pedais e corrente' },
-    { wordReal: 'Livro', wordFake: 'Revista', hint: 'Também és uma publicação impressa com páginas encadernadas' },
-    { wordReal: 'Cão', wordFake: 'Lobo', hint: 'Também és um animal canino selvagem e feroz' },
+    { wordReal: 'Presidente', wordFake: 'Príncipe' },
+    { wordReal: 'Microscópio', wordFake: 'Telescópio' },
+    { wordReal: 'Algebra', wordFake: 'Geometria' },
+    { wordReal: 'Pulmão', wordFake: 'Coração' },
+    { wordReal: 'Semáforo', wordFake: 'Placa' },
+    { wordReal: 'Urso', wordFake: 'Lobo' },
+    { wordReal: 'Pasta', wordFake: 'Arroz' },
+    { wordReal: 'Helicóptero', wordFake: 'Avião' },
   ],
   animais: [
-    { wordReal: 'Leão', wordFake: 'Tigre', hint: 'Também és um grande felino selvagem, muito feroz' },
-    { wordReal: 'Gato', wordFake: 'Gato-montês', hint: 'Também és um felino, menor e mais selvagem' },
-    { wordReal: 'Cobra', wordFake: 'Píton', hint: 'Também és uma serpente longa e constritora' },
-    { wordReal: 'Elefante', wordFake: 'Rinoceronte', hint: 'Também és um mamífero gigante e forte' },
+    { wordReal: 'Águia', wordFake: 'Falcão' },
+    { wordReal: 'Baleia', wordFake: 'Golfinho' },
+    { wordReal: 'Zebra', wordFake: 'Girafa' },
+    { wordReal: 'Lagartixa', wordFake: 'Cobra' },
+    { wordReal: 'Pinguim', wordFake: 'Foca' },
+    { wordReal: 'Chimpanzé', wordFake: 'Gorila' },
+    { wordReal: 'Coruja', wordFake: 'Mocho' },
+    { wordReal: 'Tubarão', wordFake: 'Raia' },
   ],
   comida: [
-    { wordReal: 'Pizza', wordFake: 'Calzone', hint: 'Também és feito de massa, queijo e molho, mas dobrado' },
-    { wordReal: 'Hambúrguer', wordFake: 'Cachorro-quente', hint: 'Também és um sanduíche com carne num pão' },
-    { wordReal: 'Chocolate', wordFake: 'Trufa', hint: 'Também és feito de cacau, doce e delicioso' },
-    { wordReal: 'Pão', wordFake: 'Broa', hint: 'Também és um alimento de massa fermentada cozida' },
+    { wordReal: 'Sushi', wordFake: 'Tempura' },
+    { wordReal: 'Bolonhesa', wordFake: 'Carbonara' },
+    { wordReal: 'Croissant', wordFake: 'Pão de Queijo' },
+    { wordReal: 'Gelado', wordFake: 'Sorbet' },
+    { wordReal: 'Churrasco', wordFake: 'Espetada' },
+    { wordReal: 'Paella', wordFake: 'Risoto' },
+    { wordReal: 'Bife', wordFake: 'Costeleta' },
+    { wordReal: 'Queijo', wordFake: 'Manteiga' },
   ],
   filmes: [
-    { wordReal: 'Titanic', wordFake: 'Pearl Harbor', hint: 'Também és um drama histórico com romance' },
-    { wordReal: 'Avatar', wordFake: 'Duna', hint: 'Também és uma ficção científica épica de ficção científica' },
-    { wordReal: 'Jaws', wordFake: 'Tubarão Branco', hint: 'Também és um filme de terror com criaturas marinhas' },
-    { wordReal: 'Matrix', wordFake: 'Inception', hint: 'Também és ficção científica sobre realidade virtual' },
+    { wordReal: 'Gladiador', wordFake: 'Centurião' },
+    { wordReal: 'Homem-Aranha', wordFake: 'Homem-Formiga' },
+    { wordReal: 'Rocky', wordFake: 'Rambo' },
+    { wordReal: 'ET', wordFake: 'ALF' },
+    { wordReal: 'Shrek', wordFake: 'Fiona' },
+    { wordReal: 'Planeta dos Macacos', wordFake: 'Planeta Vermelho' },
+    { wordReal: 'Jogo da Imitação', wordFake: 'O Código Enigma' },
+    { wordReal: 'Interestelar', wordFake: 'Gravidade' },
   ],
   lugares: [
-    { wordReal: 'Paris', wordFake: 'Roma', hint: 'Também és uma capital europeia com monumentos históricos' },
-    { wordReal: 'Praia', wordFake: 'Baía', hint: 'Também és um local à beira do oceano com areia' },
-    { wordReal: 'Floresta', wordFake: 'Selva', hint: 'Também és um ecossistema com muitas árvores' },
-    { wordReal: 'Montanha', wordFake: 'Colina', hint: 'Também és uma elevação de terra muito grande' },
+    { wordReal: 'Egito', wordFake: 'Sudão' },
+    { wordReal: 'Suíça', wordFake: 'Áustria' },
+    { wordReal: 'Amsterdão', wordFake: 'Roterdão' },
+    { wordReal: 'Deserto', wordFake: 'Savana' },
+    { wordReal: 'Caverna', wordFake: 'Mina' },
+    { wordReal: 'Vulcão', wordFake: 'Cratera' },
+    { wordReal: 'Islândia', wordFake: 'Groenlândia' },
+    { wordReal: 'Colosseu', wordFake: 'Anfiteatro' },
   ],
   profissões: [
-    { wordReal: 'Médico', wordFake: 'Enfermeiro', hint: 'Também trabalhas na saúde cuidando de pessoas' },
-    { wordReal: 'Professor', wordFake: 'Tutor', hint: 'Também és alguém que ensina e transmite conhecimento' },
-    { wordReal: 'Polícia', wordFake: 'Guarda', hint: 'Também és alguém que trabalha na segurança e ordem' },
-    { wordReal: 'Cozinheiro', wordFake: 'Pasteleiro', hint: 'Também és alguém que prepara comida' },
+    { wordReal: 'Engenheiro', wordFake: 'Arquiteto' },
+    { wordReal: 'Eletricista', wordFake: 'Encanador' },
+    { wordReal: 'Repórter', wordFake: 'Entrevistador' },
+    { wordReal: 'Psicólogo', wordFake: 'Psiquiatra' },
+    { wordReal: 'Guarda Costeira', wordFake: 'Militar' },
+    { wordReal: 'Historiador', wordFake: 'Arqueólogo' },
+    { wordReal: 'Botanista', wordFake: 'Biólogo' },
+    { wordReal: 'Fotógrafo', wordFake: 'Cinegrafista' },
   ],
   objetos: [
-    { wordReal: 'Tesoura', wordFake: 'Faca', hint: 'Também és um utensílio cortante de metal' },
-    { wordReal: 'Relógio', wordFake: 'Despertador', hint: 'Também és um objeto que marca tempo' },
-    { wordReal: 'Lâmpada', wordFake: 'Vela', hint: 'Também és algo que ilumina um lugar' },
-    { wordReal: 'Cadeira', wordFake: 'Banco', hint: 'Também és um móvel para sentar' },
+    { wordReal: 'Bússola', wordFake: 'Mapa' },
+    { wordReal: 'Martelo', wordFake: 'Machado' },
+    { wordReal: 'Espada', wordFake: 'Lança' },
+    { wordReal: 'Âncora', wordFake: 'Corrente' },
+    { wordReal: 'Chave', wordFake: 'Cadeado' },
+    { wordReal: 'Telescópio', wordFake: 'Periscópio' },
+    { wordReal: 'Termómetro', wordFake: 'Barômetro' },
+    { wordReal: 'Moeda', wordFake: 'Medalha' },
   ],
   desporto: [
-    { wordReal: 'Futebol', wordFake: 'Rugby', hint: 'Também és um desporto de equipa com bola' },
-    { wordReal: 'Natação', wordFake: 'Mergulho', hint: 'Também és um desporto na água' },
-    { wordReal: 'Tênis', wordFake: 'Badminton', hint: 'Também és um desporto com raquete' },
-    { wordReal: 'Boxe', wordFake: 'Muay Thai', hint: 'Também és um desporto de combate' },
+    { wordReal: 'Voleibol', wordFake: 'Basquetebol' },
+    { wordReal: 'Hóquei', wordFake: 'Polo' },
+    { wordReal: 'Esgrima', wordFake: 'Capoeira' },
+    { wordReal: 'Tiro com Arco', wordFake: 'Dardos' },
+    { wordReal: 'Esqui', wordFake: 'Snowboard' },
+    { wordReal: 'Surfe', wordFake: 'Wakeboard' },
+    { wordReal: 'Escalada', wordFake: 'Rapel' },
+    { wordReal: 'Badminton', wordFake: 'Ténis de Mesa' },
   ],
-};
-
-const VAGUE_HINTS = {
-  aleatório: [
-    'Esta palavra fica perto da ideia certa, mas por outro caminho.',
-    'Pensa numa alternativa comum no mesmo universo.',
-    'Nao e oposto, nao e igual: e da mesma familia.'
-  ],
-  animais: [
-    'Move-se no mesmo tipo de habitat em muitos casos.',
-    'Partilha alguns comportamentos observaveis.',
-    'Pensa em algo do mesmo grupo geral.'
-  ],
-  comida: [
-    'Aparece em contextos de refeicao parecidos.',
-    'A sensacao geral pode ser parecida para muita gente.',
-    'Costuma viver na mesma conversa de mesa.'
-  ],
-  filmes: [
-    'Evoca uma experiencia de genero semelhante.',
-    'Tem atmosfera que pode confundir numa descricao curta.',
-    'Cabe no mesmo tipo de recomendacao informal.'
-  ],
-  lugares: [
-    'Tem funcao ou papel parecido em certos roteiros.',
-    'Partilha contexto geografico ou cultural amplo.',
-    'Muitas pessoas associam ao mesmo tipo de viagem.'
-  ],
-  profissões: [
-    'Atua numa area profissional muito proxima.',
-    'Pode aparecer no mesmo ambiente de trabalho.',
-    'Muda o detalhe, mantem o contexto.'
-  ],
-  objetos: [
-    'Serve para uso cotidiano em situacao semelhante.',
-    'Tem finalidade parecida vista de longe.',
-    'Nao e o mesmo objeto, mas cumpre papel proximo.'
-  ],
-  desporto: [
-    'Partilha dinamica geral de jogo ou pratica.',
-    'Pode confundir quando descrito em poucas palavras.',
-    'Costuma surgir no mesmo tipo de conversa desportiva.'
-  ]
 };
 
 function randomIndex(max) {
@@ -120,12 +109,6 @@ function pickPair(category) {
   return pool[randomIndex(pool.length)];
 }
 
-function pickVagueHint(category) {
-  const normalized = normalizeCategory(category);
-  const hints = VAGUE_HINTS[normalized] || VAGUE_HINTS['aleatório'];
-  return hints[randomIndex(hints.length)];
-}
-
 export default function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -147,7 +130,6 @@ export default function handler(req, res) {
   const pair = pickPair(category);
   return res.status(200).json({
     wordReal: pair.wordReal,
-    wordFake: pair.wordFake,
-    hint: pickVagueHint(category)
+    wordFake: pair.wordFake
   });
 }

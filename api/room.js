@@ -247,7 +247,6 @@ export default async function handler(req, res) {
 
       room.wordReal = body.words.wordReal;
       room.wordFake = body.words.wordFake;
-      room.hint = body.words.hint || '';
 
       const ids = room.players.map((p) => p.id);
       const shuffled = shuffle([...ids]);
@@ -343,7 +342,6 @@ export default async function handler(req, res) {
       room.phase = 'lobby';
       room.wordReal = null;
       room.wordFake = null;
-      room.hint = null;
       room.impostors = [];
       room.assigns = {};
       room.revealReady = {};
