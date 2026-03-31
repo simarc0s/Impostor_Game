@@ -1,0 +1,13 @@
+{
+  "name": "impostor-game",
+  "version": "1.0.0",
+  "description": "Jogo de dedução social - Impostor",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "keywords": ["game", "impostor", "social"],
+  "author": "",
+  "license": "MIT"
+}

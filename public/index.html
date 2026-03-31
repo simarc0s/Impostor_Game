@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMPOSTOR — Jogo de Palavras</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0f; --card:#16161f; --border:#2a2a3a;
+    --accent:#ff3c5f; --accent2:#ffb800; --accent3:#00e5ff;
+    --text:#f0f0ff; --muted:#6b6b8a; --green:#00ff9d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(255,60,95,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(0,229,255,.06) 0%,transparent 60%);z-index:0;}
+  .wrap{max-width:680px;margin:0 auto;padding:20px 16px 80px;position:relative;z-index:2;}
+
+  /* HEADER */
+  .hdr{text-align:center;padding:32px 0 24px;}
+  .hdr-eye{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--accent);text-transform:uppercase;margin-bottom:10px;}
+  .hdr h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(62px,14vw,104px);letter-spacing:10px;line-height:.9;background:linear-gradient(135deg,#fff 30%,var(--accent) 70%,var(--accent2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .hdr-sub{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);margin-top:10px;letter-spacing:2px;}
+
+  /* SCREENS */
+  .scr{display:none;}
+  .scr.on{display:block;animation:fu .32s ease;}
+  @keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* CARD */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:14px;position:relative;overflow:hidden;}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));opacity:.4;}
+  .ctitle{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:14px;}
+
+  /* INPUTS */
+  .ig{margin-bottom:13px;}
+  label{display:block;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+  input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:16px;padding:11px 14px;border-radius:10px;outline:none;transition:border-color .2s,background .2s;}
+  input:focus{border-color:var(--accent3);background:rgba(0,229,255,.04);}
+  input[type=number]{-moz-appearance:textfield;}
+
+  /* BTNS */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:10px;border:none;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .18s;text-transform:uppercase;letter-spacing:1px;}
+  .btn:hover{filter:brightness(1.12);transform:translateY(-1px);}
+  .btn:active{transform:scale(.97);filter:brightness(.94);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
+  .full{width:100%;}
+  .bp{background:var(--accent);color:#fff;}
+  .bs{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .b2{background:var(--accent2);color:#0a0a0f;}
+  .b3{background:var(--accent3);color:#0a0a0f;}
+  .bg{background:rgba(255,255,255,.05);color:var(--muted);font-size:13px;padding:10px 17px;}
+  .row{display:flex;gap:10px;}
+  .row .btn{flex:1;}
+
+  /* ROOM CODE */
+  .codebox{text-align:center;padding:20px;background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.2);border-radius:14px;margin-bottom:16px;}
+  .codebox .code{font-family:'Bebas Neue',sans-serif;font-size:58px;letter-spacing:14px;color:var(--accent2);text-shadow:0 0 28px rgba(255,184,0,.3);}
+  .codelbl{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--muted);margin-top:3px;}
+
+  /* PLAYERS */
+  .plist{list-style:none;}
+  .pitem{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);animation:si .22s ease;}
+  .pitem:last-child{border-bottom:none;}
+  @keyframes si{from{opacity:0;transform:translateX(-7px)}to{opacity:1;transform:translateX(0)}}
+  .avi{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+  .pnm{font-weight:700;font-size:15px;flex:1;}
+  .pbdg{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--muted);}
+  .pbdg.host{background:rgba(255,184,0,.15);color:var(--accent2);}
+  .pbdg.imp{background:rgba(255,60,95,.15);color:var(--accent);}
+
+  /* CHIPS */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .chip{padding:6px 13px;border-radius:20px;border:1px solid var(--border);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;transition:all .18s;color:var(--muted);background:transparent;}
+  .chip:hover{border-color:var(--muted);}
+  .chip.on{border-color:var(--accent2);color:var(--accent2);background:rgba(255,184,0,.1);}
+
+  /* PASS */
+  .passcard{text-align:center;padding:36px 20px;}
+  .ptitle{font-family:'Bebas Neue',sans-serif;font-size:44px;letter-spacing:4px;margin-bottom:8px;}
+  .pname2{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:3px;color:var(--accent2);margin:6px 0;}
+
+  /* REVEAL */
+  .revcard{text-align:center;padding:28px 16px;cursor:pointer;user-select:none;}
+  .rbdg{display:inline-flex;align-items:center;gap:8px;padding:7px 18px;border-radius:30px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:12px;}
+  .rbdg.imp{background:rgba(255,60,95,.15);border:1px solid rgba(255,60,95,.3);color:var(--accent);}
+  .rbdg.cid{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.2);color:var(--accent3);}
+  .bigw{font-family:'Bebas Neue',sans-serif;font-size:clamp(50px,13vw,84px);letter-spacing:6px;line-height:1;margin:8px 0;transition:filter .4s ease;}
+  .bigw.blur{filter:blur(22px);}
+  .bigw.iword{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .bigw.cword{color:var(--accent3);text-shadow:0 0 36px rgba(0,229,255,.25);}
+  .taphint{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:2px;color:var(--muted);animation:pu 1.8s infinite;}
+  @keyframes pu{0%,100%{opacity:.45}50%{opacity:1}}
+  .hintbox{background:rgba(255,60,95,.05);border:1px dashed rgba(255,60,95,.3);border-radius:12px;padding:14px;margin-top:12px;text-align:left;}
+  .hintbox .hl{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--accent);margin-bottom:6px;}
+  .hintbox .ht{font-size:14px;line-height:1.5;color:rgba(240,240,255,.82);font-style:italic;}
+
+  /* PROGRESS */
+  .prog{height:3px;background:var(--border);border-radius:3px;margin:12px 0;overflow:hidden;}
+  .progf{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .3s ease;}
+
+  /* STATS */
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .sbox{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:15px;text-align:center;}
+  .sv{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:1;color:var(--accent2);}
+  .sl{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-top:4px;}
+
+  /* VOTE */
+  .vitem{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;cursor:pointer;margin-bottom:9px;transition:all .18s;background:rgba(255,255,255,.02);}
+  .vitem:hover{border-color:rgba(255,60,95,.4);background:rgba(255,60,95,.05);}
+  .vitem.sel{border-color:var(--accent);background:rgba(255,60,95,.1);}
+  .vchk{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;transition:all .18s;}
+  .vitem.sel .vchk{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  /* RESULT */
+  .reshero{text-align:center;padding:32px 0 18px;}
+  .ricon{font-size:62px;margin-bottom:12px;animation:bou .5s ease;}
+  @keyframes bou{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+  .rtitle{font-family:'Bebas Neue',sans-serif;font-size:50px;letter-spacing:4px;}
+  .rsub{font-family:'Space Mono',monospace;font-size:13px;color:var(--muted);margin-top:8px;}
+  .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0;}
+  .wbox{text-align:center;padding:16px 10px;border-radius:13px;}
+  .wlbl{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;margin-bottom:7px;}
+  .wval{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;line-height:1;}
+  .wbox.c{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.15);}
+  .wbox.c .wlbl{color:var(--accent3);}
+  .wbox.c .wval{color:var(--accent3);}
+  .wbox.i{background:rgba(255,60,95,.07);border:1px solid rgba(255,60,95,.15);}
+  .wbox.i .wlbl{color:var(--accent);}
+  .wbox.i .wval{color:var(--accent);}
+
+  /* ALERTS */
+  .al{padding:11px 14px;border-radius:10px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1px;margin-bottom:12px;display:none;}
+  .al.on{display:block;animation:fu .2s ease;}
+  .ale{background:rgba(255,60,95,.1);border:1px solid rgba(255,60,95,.25);color:var(--accent);}
+  .ali{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.15);color:var(--accent3);}
+  .als{background:rgba(0,255,157,.07);border:1px solid rgba(0,255,157,.15);color:var(--green);}
+
+  /* LOADING */
+  .ldwrap{text-align:center;padding:34px 16px;}
+  .spin{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .75s linear infinite;margin:0 auto 16px;}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .ldtxt{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:2px;animation:pu 1.4s infinite;}
+
+  /* MISC */
+  .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:18px 0;}
+  .muted{color:var(--muted);font-size:13px;font-family:'Space Mono',monospace;}
+  .tag{display:inline-block;padding:4px 12px;border-radius:20px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;margin-top:10px;}
+  .tg{background:rgba(0,255,157,.1);color:var(--green);border:1px solid rgba(0,255,157,.2);}
+  .tr{background:rgba(255,60,95,.12);color:var(--accent);border:1px solid rgba(255,60,95,.2);}
+  .mt8{margin-top:8px;} .mt12{margin-top:12px;} .mt16{margin-top:16px;} .mt20{margin-top:20px;}
+  .mb8{margin-bottom:8px;} .mb12{margin-bottom:12px;}
+  ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="hdr-eye">⚡ Jogo de Dedução Social</div>
+    <h1>IMPOSTOR</h1>
+    <div class="hdr-sub">// quem será o infiltrado? //</div>
+  </div>
+
+  <!-- HOME -->
+  <div class="scr on" id="s-home">
+    <div class="card">
+      <div class="ctitle">// nova partida</div>
+      <div class="row">
+        <button class="btn bp full" onclick="nav('s-create')">🎮 Criar Sala</button>
+        <button class="btn bs full" onclick="nav('s-join')">🚪 Entrar</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">// como jogar</div>
+      <ul class="plist">
+        <li class="pitem"><div class="avi" style="background:rgba(0,229,255,.1)">🃏</div><div><div style="font-weight:700;margin-bottom:2px">Cartas Secretas</div><div class="muted">Cada jogador vê uma palavra. O impostor vê uma diferente.</div></div></li>
+        <li class="pitem"><div class="avi" style="background:rgba(255,184,0,.1)">💬</div><div><div style="font-weight:700;margin-bottom:2px">Discussão</div><div class="muted">Todos dão uma dica sobre a palavra. O impostor blefa!</div></div></li>
+        <li class="pitem"><div class="avi" style="background:rgba(255,60,95,.1)">🗳️</div><div><div style="font-weight:700;margin-bottom:2px">Votação</div><div class="muted">Votem em quem acham que é o impostor. Acertaram?</div></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CREATE -->
+  <div class="scr" id="s-create">
+    <div class="card">
+      <div class="ctitle">// criar sala</div>
+      <div class="ig"><label>O teu nome</label><input id="c-name" type="text" placeholder="Ex: João" maxlength="18"></div>
+      <div class="row mb12">
+        <div style="flex:1"><label>Nº Jogadores</label><input id="c-players" type="number" value="4" min="3" max="12"></div>
+        <div style="flex:1"><label>Nº Impostores</label><input id="c-impost" type="number" value="1" min="1" max="3"></div>
+      </div>
+      <div class="ig">
+        <label>Categoria</label>
+        <div class="chips" id="chips">
+          <div class="chip on" data-v="aleatório">🎲 Aleatório</div>
+          <div class="chip" data-v="animais">🐾 Animais</div>
+          <div class="chip" data-v="comida">🍕 Comida</div>
+          <div class="chip" data-v="filmes">🎬 Filmes</div>
+          <div class="chip" data-v="lugares">🌍 Lugares</div>
+          <div class="chip" data-v="profissões">💼 Profissões</div>
+          <div class="chip" data-v="objetos">🔧 Objetos</div>
+          <div class="chip" data-v="desporto">⚽ Desporto</div>
+        </div>
+      </div>
+      <div class="al ale" id="a-create"></div>
+      <div class="row mt16">
+        <button class="btn bg" onclick="nav('s-home')">← Voltar</button>
+        <button class="btn bp" onclick="doCreate()">🚀 Criar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOIN -->
+  <div class="scr" id="s-join">
+    <div class="card">
+      <div class="ctitle">// entrar numa sala</div>
+      <div class="ig"><label>O teu nome</label><input id="j-name" type="text" placeholder="Ex: Maria" maxlength="18"></div>
+      <div class="ig">
+        <label>Código da Sala</label>
+        <input id="j-code" type="text" placeholder="AB12" maxlength="4"
+          style="text-transform:uppercase;font-family:'Bebas Neue';font-size:34px;letter-spacing:10px;text-align:center">
+      </div>
+      <div class="al ale" id="a-join"></div>
+      <div class="row mt16">
+        <button class="btn bg" onclick="nav('s-home')">← Voltar</button>
+        <button class="btn b3" onclick="doJoin()">Entrar 🚪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div class="scr" id="s-lobby">
+    <div class="codebox">
+      <div class="codelbl">CÓDIGO DA SALA</div>
+      <div class="code" id="l-code">----</div>
+      <div class="codelbl" style="margin-top:4px">Partilha este código com os amigos</div>
+    </div>
+    <div class="card">
+      <div class="ctitle">// jogadores <span id="l-count" style="color:var(--accent2)">0/0</span></div>
+      <ul class="plist" id="l-list"></ul>
+      <div class="al ali on mt12" id="l-wait">A aguardar jogadores...</div>
+      <div class="al ale" id="a-lobby"></div>
+      <button class="btn b2 full mt12" id="btn-start" style="display:none" onclick="doStart()">🎮 Iniciar Jogo</button>
+      <button class="btn bg full mt8" onclick="addBot()">+ Adicionar Jogador Virtual</button>
+    </div>
+  </div>
+
+  <!-- GENERATING -->
+  <div class="scr" id="s-gen">
+    <div class="card">
+      <div class="ldwrap">
+        <div class="spin"></div>
+        <div class="ldtxt">A GERAR PALAVRAS...</div>
+        <div class="muted mt8" style="font-size:11px">Criando um par de palavras único</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASS (before each reveal) -->
+  <div class="scr" id="s-pass">
+    <div class="card">
+      <div class="passcard">
+        <div style="font-size:52px;margin-bottom:12px">🙈</div>
+        <div class="ptitle">PASSA O ECRÃ</div>
+        <div class="muted mb8">É a vez de:</div>
+        <div class="pname2" id="pass-name">—</div>
+        <div class="muted mt8 mb12">Não mostres a ninguém!</div>
+        <button class="btn b2" onclick="showReveal()">👁️ Ver a minha palavra</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVEAL -->
+  <div class="scr" id="s-reveal">
+    <div class="card">
+      <div class="ctitle">// palavra de: <span id="rev-name" style="color:var(--accent2)"></span></div>
+      <div class="prog"><div class="progf" id="rev-prog"></div></div>
+      <div class="revcard" id="rev-card" onclick="tapReveal()">
+        <div id="rev-badge"></div>
+        <div class="bigw blur" id="rev-word">???</div>
+        <div id="rev-hint"></div>
+        <div class="taphint" id="rev-tap">👆 Toca para revelar</div>
+      </div>
+      <div id="rev-btns" style="display:none">
+        <button class="btn bp full" id="btn-nxt" onclick="nextPlayer()">Próximo Jogador →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCUSSION -->
+  <div class="scr" id="s-disc">
+    <div class="card">
+      <div class="ctitle">// fase de discussão</div>
+      <div class="sgrid">
+        <div class="sbox"><div class="sv" id="d-np">0</div><div class="sl">Jogadores</div></div>
+        <div class="sbox"><div class="sv" id="d-ni">0</div><div class="sl">Impostores</div></div>
+      </div>
+      <div style="background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.1);border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--accent3);margin-bottom:9px">REGRAS</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div class="muted">1. Cada jogador diz <strong style="color:var(--text)">uma dica</strong> sobre a sua palavra</div>
+          <div class="muted">2. O impostor tenta <strong style="color:var(--accent)">blefar</strong> sem ser apanhado</div>
+          <div class="muted">3. Discutam e <strong style="color:var(--accent2)">votem</strong> em quem é suspeito</div>
+        </div>
+      </div>
+      <button class="btn bp full" onclick="goVote()">🗳️ Ir para Votação</button>
+    </div>
+  </div>
+
+  <!-- VOTE -->
+  <div class="scr" id="s-vote">
+    <div class="card">
+      <div class="ctitle">// votação — quem é o impostor?</div>
+      <div id="vote-list"></div>
+      <div class="al ale" id="a-vote"></div>
+      <button class="btn bp full mt12" id="btn-vote" onclick="confirmVote()" disabled>✅ Confirmar Voto</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="scr" id="s-result">
+    <div class="card">
+      <div class="reshero" id="res-hero"></div>
+      <div class="divider"></div>
+      <div class="ctitle">// as palavras eram</div>
+      <div class="wgrid">
+        <div class="wbox c"><div class="wlbl">CIDADÃOS</div><div class="wval" id="r-real">—</div></div>
+        <div class="wbox i"><div class="wlbl">IMPOSTOR</div><div class="wval" id="r-fake">—</div></div>
+      </div>
+      <div class="ctitle mt16">// os impostores eram</div>
+      <ul class="plist" id="r-imps"></ul>
+      <div class="row mt20">
+        <button class="btn bs" onclick="nav('s-home')">🏠 Início</button>
+        <button class="btn b2" onclick="playAgain()">🔄 Jogar Novamente</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /wrap -->
+
+<script>
+// ─── STATE ────────────────────────────────
+const EMOJIS = ['🦊','🐺','🦅','🐉','🦁','🐯','🦈','🐻','🦝','🦋','🐙','🦄','🦩','🐸','🐨'];
+const BOTS   = ['Alex','Bruno','Carla','Diogo','Eva','Fábio','Gabi','Hugo','Íris','Jorge','Katia','Luís'];
+
+let G = {
+  rooms:{}, code:null, me:null,
+  cat:'aleatório', idx:0, tapped:false, pick:null
+};
+
+function R(){ return G.rooms[G.code]; }
+
+// ─── NAVIGATION ───────────────────────────
+function nav(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ─── ALERTS ───────────────────────────────
+function showAlert(id, msg, type='e'){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.className = `al ${type==='e'?'ale':type==='i'?'ali':'als'} on`;
+  el.textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.classList.remove('on'), 3600);
+}
+
+// ─── CHIPS ────────────────────────────────
+document.getElementById('chips').addEventListener('click', e=>{
+  const c = e.target.closest('.chip');
+  if(!c) return;
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on');
+  G.cat = c.dataset.v;
+});
+
+document.getElementById('j-code').addEventListener('input', function(){
+  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+});
+
+// ─── GENERATE CODE ────────────────────────
+function genCode(){
+  const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<4;i++) s+=ch[Math.floor(Math.random()*ch.length)];
+  return s;
+}
+
+// ─── CREATE ───────────────────────────────
+function doCreate(){
+  const name = document.getElementById('c-name').value.trim();
+  const mp   = parseInt(document.getElementById('c-players').value)||4;
+  const mi   = parseInt(document.getElementById('c-impost').value)||1;
+
+  if(!name)         return showAlert('a-create','Insere o teu nome!');
+  if(mp<3||mp>12)   return showAlert('a-create','Jogadores: 3 a 12');
+  if(mi<1||mi>=mp)  return showAlert('a-create','Impostores têm de ser menos que os jogadores');
+
+  const code = genCode();
+  G.rooms[code] = {
+    code, host:name, maxP:mp, maxI:mi, cat:G.cat,
+    players:[{name, emoji:EMOJIS[0], isBot:false}],
+    phase:'lobby',
+    wordReal:null, wordFake:null, hint:null,
+    impostors:[], assigns:{}
+  };
+  G.code = code; G.me = name;
+  renderLobby();
+  nav('s-lobby');
+}
+
+// ─── JOIN ─────────────────────────────────
+function doJoin(){
+  const name = document.getElementById('j-name').value.trim();
+  const code = document.getElementById('j-code').value.toUpperCase().trim();
+
+  if(!name)          return showAlert('a-join','Insere o teu nome!');
+  if(code.length<4)  return showAlert('a-join','Código inválido (4 caracteres)');
+
+  const r = G.rooms[code];
+  if(!r)                                  return showAlert('a-join','Sala não encontrada. Verifica o código.');
+  if(r.phase !== 'lobby')                 return showAlert('a-join','O jogo já começou!');
+  if(r.players.length >= r.maxP)          return showAlert('a-join','Sala cheia!');
+  if(r.players.find(p=>p.name===name))    return showAlert('a-join','Esse nome já está em uso nesta sala.');
+
+  r.players.push({name, emoji:EMOJIS[r.players.length%EMOJIS.length], isBot:false});
+  G.code = code; G.me = name;
+  renderLobby();
+  nav('s-lobby');
+}
+
+// ─── ADD BOT ──────────────────────────────
+function addBot(){
+  const r = R();
+  if(!r) return;
+  if(r.players.length >= r.maxP) return showAlert('a-lobby','Sala cheia!');
+  const used = r.players.map(p=>p.name);
+  const avail = BOTS.filter(n=>!used.includes(n));
+  if(!avail.length) return;
+  const name = avail[Math.floor(Math.random()*avail.length)];
+  r.players.push({name, emoji:EMOJIS[r.players.length%EMOJIS.length], isBot:true});
+  renderLobby();
+}
+
+// ─── RENDER LOBBY ─────────────────────────
+function renderLobby(){
+  const r = R(); if(!r) return;
+  document.getElementById('l-code').textContent  = r.code;
+  document.getElementById('l-count').textContent = `${r.players.length}/${r.maxP}`;
+
+  const ul = document.getElementById('l-list');
+  ul.innerHTML = '';
+  r.players.forEach(p=>{
+    const host = p.name===r.host;
+    const li = document.createElement('li');
+    li.className = 'pitem';
+    li.innerHTML = `<div class="avi" style="background:${host?'rgba(255,184,0,.15)':'rgba(255,255,255,.06)'}">${p.emoji}</div>
+      <div class="pnm">${p.name}${p.isBot?' 🤖':''}</div>
+      <div class="pbdg ${host?'host':''}">${host?'HOST':'JOGADOR'}</div>`;
+    ul.appendChild(li);
+  });
+
+  const isHost = G.me === r.host;
+  const canStart = r.players.length >= 3;
+  document.getElementById('btn-start').style.display = (isHost&&canStart) ? 'flex' : 'none';
+  document.getElementById('l-wait').style.display    = (isHost&&canStart) ? 'none' : 'block';
+}
+
+// ─── START ────────────────────────────────
+async function doStart(){
+  const r = R(); if(!r) return;
+  nav('s-gen');
+
+  let words;
+  try {
+    words = await aiWords(r.cat);
+  } catch(e) {
+    console.warn('Gerador falhou, usando fallback:', e);
+    words = fallback(r.cat);
+  }
+
+  r.wordReal = words.wordReal;
+  r.wordFake = words.wordFake;
+  r.hint     = words.hint;
+
+  // Assign impostors
+  const names    = r.players.map(p=>p.name);
+  const shuffled = shuffle([...names]);
+  r.impostors    = shuffled.slice(0, r.maxI);
+
+  // Assign words
+  r.assigns = {};
+  names.forEach(n => { r.assigns[n] = r.impostors.includes(n) ? r.wordFake : r.wordReal; });
+
+  r.phase = 'reveal';
+  G.idx   = 0;
+  showPass();
+}
+
+// ─── PASS SCREEN ──────────────────────────
+function showPass(){
+  const r = R();
+  const p = r.players[G.idx];
+  document.getElementById('pass-name').textContent = p.name + (p.isBot?' 🤖':'');
+  G.tapped = false;
+  nav('s-pass');
+}
+
+// ─── REVEAL SCREEN ────────────────────────
+function showReveal(){
+  const r = R();
+  const p = r.players[G.idx];
+  const isImp = r.impostors.includes(p.name);
+  const word  = r.assigns[p.name];
+  const total = r.players.length;
+
+  G.tapped = false;
+
+  document.getElementById('rev-name').textContent   = p.name + (p.isBot?' 🤖':'');
+  document.getElementById('rev-prog').style.width   = `${(G.idx/total)*100}%`;
+
+  const wEl = document.getElementById('rev-word');
+  wEl.textContent = word;
+  wEl.className   = `bigw blur ${isImp?'iword':'cword'}`;
+
+  document.getElementById('rev-badge').innerHTML = '';
+  document.getElementById('rev-hint').innerHTML  = '';
+  document.getElementById('rev-tap').style.display  = 'block';
+  document.getElementById('rev-btns').style.display = 'none';
+
+  nav('s-reveal');
+}
+
+function tapReveal(){
+  if(G.tapped) return;
+  G.tapped = true;
+
+  const r    = R();
+  const p    = r.players[G.idx];
+  const isImp = r.impostors.includes(p.name);
+
+  document.getElementById('rev-word').classList.remove('blur');
+  document.getElementById('rev-tap').style.display = 'none';
+
+  document.getElementById('rev-badge').innerHTML = `
+    <div class="rbdg ${isImp?'imp':'cid'}">${isImp?'🔴 IMPOSTOR':'🔵 CIDADÃO'}</div>`;
+
+  if(isImp && r.hint){
+    document.getElementById('rev-hint').innerHTML = `
+      <div class="hintbox">
+        <div class="hl">💡 Dica para blefar</div>
+        <div class="ht">${r.hint}</div>
+      </div>`;
+  }
+
+  document.getElementById('rev-btns').style.display = 'block';
+  const isLast = G.idx >= r.players.length - 1;
+  document.getElementById('btn-nxt').textContent = isLast ? '✅ Iniciar Discussão' : 'Próximo Jogador →';
+}
+
+function nextPlayer(){
+  const r = R();
+  G.idx++;
+  if(G.idx >= r.players.length){
+    document.getElementById('d-np').textContent = r.players.length;
+    document.getElementById('d-ni').textContent = r.maxI;
+    nav('s-disc');
+  } else {
+    showPass();
+  }
+}
+
+// ─── GO VOTE ──────────────────────────────
+function goVote(){
+  buildVoteList();
+  nav('s-vote');
+}
+
+// ─── VOTE ─────────────────────────────────
+function buildVoteList(){
+  const r = R();
+  G.pick = null;
+  document.getElementById('btn-vote').disabled = true;
+
+  const ul = document.getElementById('vote-list');
+  ul.innerHTML = '';
+  r.players.forEach(p=>{
+    const div = document.createElement('div');
+    div.className = 'vitem';
+    div.dataset.n = p.name;
+    div.innerHTML = `<div class="vchk"></div>
+      <div class="avi" style="background:rgba(255,255,255,.05)">${p.emoji}</div>
+      <div class="pnm">${p.name}${p.isBot?' 🤖':''}</div>`;
+    div.addEventListener('click', ()=>pickVote(p.name));
+    ul.appendChild(div);
+  });
+}
+
+function pickVote(name){
+  G.pick = name;
+  document.querySelectorAll('.vitem').forEach(el=>{
+    const s = el.dataset.n === name;
+    el.classList.toggle('sel', s);
+    el.querySelector('.vchk').textContent = s ? '✓' : '';
+  });
+  document.getElementById('btn-vote').disabled = false;
+}
+
+function confirmVote(){
+  if(!G.pick) return showAlert('a-vote','Seleciona um jogador!');
+  const r    = R();
+  const isImp = r.impostors.includes(G.pick);
+  showResult(isImp);
+}
+
+// ─── RESULT ───────────────────────────────
+function showResult(isImp){
+  const r = R();
+  const hero = document.getElementById('res-hero');
+
+  hero.innerHTML = isImp
+    ? `<div class="ricon">🎉</div>
+       <div class="rtitle" style="color:var(--green)">APANHADO!</div>
+       <div class="rsub">${G.pick} era mesmo o impostor!</div>
+       <div class="tag tg">Os Cidadãos venceram 🏆</div>`
+    : `<div class="ricon">😈</div>
+       <div class="rtitle" style="color:var(--accent)">ENGANADOS!</div>
+       <div class="rsub">${G.pick} era inocente. O impostor escapou!</div>
+       <div class="tag tr">O Impostor venceu 😈</div>`;
+
+  document.getElementById('r-real').textContent = r.wordReal || '—';
+  document.getElementById('r-fake').textContent = r.wordFake || '—';
+
+  const ul = document.getElementById('r-imps');
+  ul.innerHTML = '';
+  r.impostors.forEach(name=>{
+    const p  = r.players.find(x=>x.name===name)||{emoji:'🔴'};
+    const li = document.createElement('li');
+    li.className = 'pitem';
+    li.innerHTML = `<div class="avi" style="background:rgba(255,60,95,.15)">${p.emoji}</div>
+      <div class="pnm">${name}</div>
+      <div class="pbdg imp">IMPOSTOR</div>`;
+    ul.appendChild(li);
+  });
+
+  nav('s-result');
+}
+
+// ─── PLAY AGAIN ───────────────────────────
+function playAgain(){
+  const r = R();
+  if(!r){ nav('s-home'); return; }
+  r.phase='lobby'; r.wordReal=null; r.wordFake=null; r.hint=null;
+  r.impostors=[]; r.assigns={};
+  G.idx=0; G.pick=null;
+  renderLobby();
+  nav('s-lobby');
+}
+
+// ─── AI WORDS ─────────────────────────────
+async function aiWords(cat){
+  const res = await fetch('/api/words?category=' + encodeURIComponent(cat));
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+// ─── FALLBACK ─────────────────────────────
+function fallback(cat){
+  const m = {
+    aleatório:  {wordReal:'Guitarra',  wordFake:'Violão',      hint:'Também és um instrumento de cordas muito usado no Brasil, forma parecida'},
+    animais:    {wordReal:'Leão',      wordFake:'Tigre',        hint:'Também és um grande felino selvagem, muito feroz e poderoso'},
+    comida:     {wordReal:'Pizza',     wordFake:'Calzone',      hint:'Também és feito de massa, queijo e molho, mas dobrado ao meio'},
+    filmes:     {wordReal:'Titanic',   wordFake:'Pearl Harbor', hint:'Também és um drama de amor numa tragédia histórica devastadora'},
+    lugares:    {wordReal:'Paris',     wordFake:'Roma',         hint:'Também és uma capital europeia famosa por monumentos e gastronomia'},
+    profissões: {wordReal:'Médico',    wordFake:'Enfermeiro',   hint:'Também trabalhas na saúde, cuidas de doentes em hospitais'},
+    objetos:    {wordReal:'Tesoura',   wordFake:'Faca',         hint:'Também és um utensílio cortante de metal usado no dia-a-dia'},
+    desporto:   {wordReal:'Futebol',   wordFake:'Rugby',        hint:'Também és um desporto de equipa com bola onde se marca pontos'},
+  };
+  return m[cat]||m['aleatório'];
+}
+
+// ─── SHUFFLE ──────────────────────────────
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+</script>
+</body>
+</html>
