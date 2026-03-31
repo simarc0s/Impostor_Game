@@ -1,81 +1,52 @@
-# IMPOSTOR — Jogo de Palavras 🎮
+# IMPOSTOR - Jogo de Palavras
 
-Jogo de dedução social online. Um impostor infiltrado, muita suspeita e boas gargalhadas!
+Jogo de deducao social com salas por codigo. Agora as salas sao persistidas em Supabase para permitir criar/entrar entre dispositivos (ex.: host no PC e amigo no telemovel).
 
-## 🚀 Deploy no Vercel (RÁPIDO!)
+## Deploy no Vercel
 
-### 1. Instala Vercel CLI
-```bash
-npm install -g vercel
-```
+1. Liga o repositorio no Vercel.
+2. Define as variaveis de ambiente no projeto:
+   - SUPABASE_URL
+   - SUPABASE_SERVICE_ROLE_KEY
+3. Faz deploy.
 
-### 2. Faz login
-```bash
-vercel login
-```
+## Setup do Supabase
 
-### 3. Deploy
-```bash
-vercel
-```
+1. Cria um projeto no Supabase.
+2. No SQL Editor, executa [IMPOSTOR-GAME.sql](IMPOSTOR-GAME.sql).
+3. Em Project Settings > API, copia:
+   - URL (SUPABASE_URL)
+   - service_role key (SUPABASE_SERVICE_ROLE_KEY)
+4. Cola estas variaveis no Vercel e (se quiseres testar local) no teu ambiente local.
 
-**Pronto!** O jogo está online! 🎉
-
-A Vercel gera um URL tipo: `https://impostor-game-xxx.vercel.app`
-
-### 4. Partilha o link com os colegas!
-
-## 🎮 Como Jogar Localmente
+## Executar localmente
 
 ```bash
-# Terminal 1: Vercel dev environment
 vercel dev
 ```
 
-Depois abre: `http://localhost:3000`
+Abre http://localhost:3000
 
----
+## Estrutura
 
-## 📁 Estrutura do Projeto
-
-```
+```text
 imp/
-├── public/
-│   └── index.html          # Frontend (jogo)
-├── api/
-│   └── words.js            # Backend (gera palavras)
-├── package.json
-├── vercel.json
-└── README.md
+  public/
+    index.html      # frontend do jogo
+  api/
+    words.js        # palavras por categoria
+    room.js         # criar/entrar/guardar salas (Supabase)
+  IMPOSTOR-GAME.sql # schema da tabela rooms
+  vercel.json
+  package.json
+  README.md
 ```
 
----
+## Notas
 
-## 🔧 Como Adicionar Novas Palavras
+- O ficheiro principal de frontend e [public/index.html](public/index.html).
+- Se precisares de mais palavras, edita [api/words.js](api/words.js).
 
-Edita `api/words.js` e adiciona mais pares em `WORD_PAIRS`:
-
-```javascript
-aleatório: [
-  { wordReal: 'Palavra1', wordFake: 'Palavra2', hint: 'Dica para o impostor' },
-  // Mais...
-]
-```
-
----
-
-## 💡 Features
-
-- ✅ Multiplayer local (todas as pessoas na mesma rede podem jogar)
-- ✅ Salas com código (ex: AB12)
-- ✅ Jogadores virtuais (bots)
-- ✅ 8 categorias de palavras
-- ✅ Suporta até 12 jogadores
-- ✅ Totalmente em português
-- ✅ Design dark mode futurista
-
----
-
-## 📝 Licença
+## Licenca
 
 MIT

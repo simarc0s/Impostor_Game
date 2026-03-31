@@ -343,16 +343,84 @@ const EMOJIS = ['🦊','🐺','🦅','🐉','🦁','🐯','🦈','🐻','🦝','
 const BOTS   = ['Alex','Bruno','Carla','Diogo','Eva','Fábio','Gabi','Hugo','Íris','Jorge','Katia','Luís'];
 
 let G = {
-  rooms:{}, code:null, me:null,
-  cat:'aleatório', idx:0, tapped:false, pick:null
+  room:null, code:null, me:null,
+  cat:'aleatório', idx:0, tapped:false, pick:null,
+  poll:null, busy:false
 };
 
-function R(){ return G.rooms[G.code]; }
+function R(){ return G.room; }
+
+// ─── API ─────────────────────────────────
+async function apiRequest(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    ...opts
+  });
+
+  let data = null;
+  try { data = await res.json(); } catch { data = null; }
+  if (!res.ok) {
+    const msg = data?.error || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function createRoom(room) {
+  return apiRequest('/api/room', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'create', code: room.code, room })
+  });
+}
+
+async function joinRoom(code, name) {
+  return apiRequest('/api/room', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'join', code, name })
+  });
+}
+
+async function saveRoom() {
+  if (!G.code || !G.room) return;
+  await apiRequest('/api/room', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'save', code: G.code, room: G.room, actor: G.me })
+  });
+}
+
+async function loadRoom(code) {
+  return apiRequest('/api/room?code=' + encodeURIComponent(code));
+}
+
+function startLobbyPolling() {
+  if (G.poll || !G.code) return;
+  G.poll = setInterval(async () => {
+    try {
+      const data = await loadRoom(G.code);
+      if (data?.room) {
+        G.room = data.room;
+        if (document.getElementById('s-lobby').classList.contains('on')) {
+          renderLobby();
+        }
+      }
+    } catch (e) {
+      console.warn('Polling lobby falhou:', e.message);
+    }
+  }, 2000);
+}
+
+function stopLobbyPolling() {
+  if (G.poll) {
+    clearInterval(G.poll);
+    G.poll = null;
+  }
+}
 
 // ─── NAVIGATION ───────────────────────────
 function nav(id){
   document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
   document.getElementById(id).classList.add('on');
+  if (id === 's-lobby') startLobbyPolling(); else stopLobbyPolling();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -387,7 +455,8 @@ function genCode(){
 }
 
 // ─── CREATE ───────────────────────────────
-function doCreate(){
+async function doCreate(){
+  if (G.busy) return;
   const name = document.getElementById('c-name').value.trim();
   const mp   = parseInt(document.getElementById('c-players').value)||4;
   const mi   = parseInt(document.getElementById('c-impost').value)||1;
@@ -396,49 +465,79 @@ function doCreate(){
   if(mp<3||mp>12)   return showAlert('a-create','Jogadores: 3 a 12');
   if(mi<1||mi>=mp)  return showAlert('a-create','Impostores têm de ser menos que os jogadores');
 
-  const code = genCode();
-  G.rooms[code] = {
-    code, host:name, maxP:mp, maxI:mi, cat:G.cat,
-    players:[{name, emoji:EMOJIS[0], isBot:false}],
-    phase:'lobby',
-    wordReal:null, wordFake:null, hint:null,
-    impostors:[], assigns:{}
-  };
-  G.code = code; G.me = name;
-  renderLobby();
-  nav('s-lobby');
+  G.busy = true;
+  try {
+    let created = null;
+    for (let i = 0; i < 6; i++) {
+      const code = genCode();
+      const room = {
+        code, host:name, maxP:mp, maxI:mi, cat:G.cat,
+        players:[{name, emoji:EMOJIS[0], isBot:false}],
+        phase:'lobby',
+        wordReal:null, wordFake:null, hint:null,
+        impostors:[], assigns:{}
+      };
+      try {
+        created = await createRoom(room);
+        break;
+      } catch (e) {
+        if (!String(e.message).toLowerCase().includes('já existe')) throw e;
+      }
+    }
+
+    if (!created?.room) {
+      showAlert('a-create','Não consegui criar sala agora. Tenta de novo.');
+      return;
+    }
+
+    G.code = created.code;
+    G.me = name;
+    G.room = created.room;
+    renderLobby();
+    nav('s-lobby');
+  } catch (e) {
+    showAlert('a-create', e.message || 'Erro ao criar sala.');
+  } finally {
+    G.busy = false;
+  }
 }
 
 // ─── JOIN ─────────────────────────────────
-function doJoin(){
+async function doJoin(){
+  if (G.busy) return;
   const name = document.getElementById('j-name').value.trim();
   const code = document.getElementById('j-code').value.toUpperCase().trim();
 
   if(!name)          return showAlert('a-join','Insere o teu nome!');
   if(code.length<4)  return showAlert('a-join','Código inválido (4 caracteres)');
 
-  const r = G.rooms[code];
-  if(!r)                                  return showAlert('a-join','Sala não encontrada. Verifica o código.');
-  if(r.phase !== 'lobby')                 return showAlert('a-join','O jogo já começou!');
-  if(r.players.length >= r.maxP)          return showAlert('a-join','Sala cheia!');
-  if(r.players.find(p=>p.name===name))    return showAlert('a-join','Esse nome já está em uso nesta sala.');
-
-  r.players.push({name, emoji:EMOJIS[r.players.length%EMOJIS.length], isBot:false});
-  G.code = code; G.me = name;
-  renderLobby();
-  nav('s-lobby');
+  G.busy = true;
+  try {
+    const joined = await joinRoom(code, name);
+    G.code = code;
+    G.me = name;
+    G.room = joined.room;
+    renderLobby();
+    nav('s-lobby');
+  } catch (e) {
+    showAlert('a-join', e.message || 'Erro ao entrar na sala.');
+  } finally {
+    G.busy = false;
+  }
 }
 
 // ─── ADD BOT ──────────────────────────────
-function addBot(){
+async function addBot(){
   const r = R();
   if(!r) return;
   if(r.players.length >= r.maxP) return showAlert('a-lobby','Sala cheia!');
+  if (G.me !== r.host) return showAlert('a-lobby','Só o host pode adicionar bots.');
   const used = r.players.map(p=>p.name);
   const avail = BOTS.filter(n=>!used.includes(n));
   if(!avail.length) return;
   const name = avail[Math.floor(Math.random()*avail.length)];
   r.players.push({name, emoji:EMOJIS[r.players.length%EMOJIS.length], isBot:true});
+  saveRoom().catch(e => showAlert('a-lobby', e.message || 'Erro ao atualizar sala.'));
   renderLobby();
 }
 
@@ -469,6 +568,7 @@ function renderLobby(){
 // ─── START ────────────────────────────────
 async function doStart(){
   const r = R(); if(!r) return;
+  if (G.me !== r.host) return showAlert('a-lobby','Só o host pode iniciar.');
   nav('s-gen');
 
   let words;
@@ -494,6 +594,7 @@ async function doStart(){
 
   r.phase = 'reveal';
   G.idx   = 0;
+  await saveRoom();
   showPass();
 }
 
@@ -653,6 +754,7 @@ function playAgain(){
   r.phase='lobby'; r.wordReal=null; r.wordFake=null; r.hint=null;
   r.impostors=[]; r.assigns={};
   G.idx=0; G.pick=null;
+  saveRoom().catch(() => {});
   renderLobby();
   nav('s-lobby');
 }
