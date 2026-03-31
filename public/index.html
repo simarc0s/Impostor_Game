@@ -353,7 +353,8 @@ let G = {
   busy: false,
   poll: null,
   pollFailCount: 0,
-  rejoining: false
+  rejoining: false,
+  voteListBuilt: false
 };
 
 function R() {
@@ -801,27 +802,40 @@ function buildVoteList() {
   if (!r || !me) return;
 
   const list = document.getElementById('vote-list');
-  list.innerHTML = '';
-
-  const status = document.createElement('div');
-  status.className = 'al ali on';
   const votedCount = Object.keys(r.votes || {}).length;
   const totalHumans = r.players.filter((p) => !p.isBot).length;
-  status.textContent = `Votacao anonima em curso: ${votedCount}/${totalHumans} votos recebidos`;
-  list.appendChild(status);
-
-  r.players.filter((p) => p.id !== me.id).forEach((p) => {
-    const div = document.createElement('div');
-    div.className = 'vitem';
-    div.dataset.id = p.id;
-    div.innerHTML = `<div class="vchk"></div>
-      <div class="avi" style="background:rgba(255,255,255,.05)">${p.emoji}</div>
-      <div class="pnm">${p.name}${p.isBot ? ' 🤖' : ''}</div>`;
-    div.addEventListener('click', () => pickVote(p.id));
-    list.appendChild(div);
-  });
-
   const already = (r.votes || {})[G.meId];
+
+  // Only rebuild vote list once to prevent flicker
+  if (!G.voteListBuilt) {
+    G.voteListBuilt = true;
+    list.innerHTML = '';
+
+    const status = document.createElement('div');
+    status.className = 'al ali on';
+    status.id = 'vote-status';
+    status.textContent = `Votacao anonima em curso: ${votedCount}/${totalHumans} votos recebidos`;
+    list.appendChild(status);
+
+    r.players.filter((p) => p.id !== me.id).forEach((p) => {
+      const div = document.createElement('div');
+      div.className = 'vitem';
+      div.dataset.id = p.id;
+      div.innerHTML = `<div class="vchk"></div>
+        <div class="avi" style="background:rgba(255,255,255,.05)">${p.emoji}</div>
+        <div class="pnm">${p.name}${p.isBot ? ' 🤖' : ''}</div>`;
+      div.addEventListener('click', () => pickVote(p.id));
+      list.appendChild(div);
+    });
+  } else {
+    // Just update status text on subsequent polls
+    const status = document.getElementById('vote-status');
+    if (status) {
+      status.textContent = `Votacao anonima em curso: ${votedCount}/${totalHumans} votos recebidos`;
+    }
+  }
+
+  // Update button state
   if (already) {
     G.pick = already;
     document.getElementById('btn-vote').disabled = true;
@@ -910,14 +924,17 @@ function syncUI() {
   switch (r.phase) {
     case 'lobby':
       G.tapped = false;
+      G.voteListBuilt = false;
       renderLobby();
       nav('s-lobby');
       break;
     case 'reveal':
+      G.voteListBuilt = false;
       renderReveal();
       nav('s-reveal');
       break;
     case 'discussion':
+      G.voteListBuilt = false;
       renderDiscussion();
       nav('s-disc');
       break;
@@ -926,10 +943,12 @@ function syncUI() {
       nav('s-vote');
       break;
     case 'result':
+      G.voteListBuilt = false;
       renderResult();
       nav('s-result');
       break;
     default:
+      G.voteListBuilt = false;
       renderLobby();
       nav('s-lobby');
       break;
