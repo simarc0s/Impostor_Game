@@ -325,7 +325,7 @@
       <div class="ctitle">// as palavras eram</div>
       <div class="wgrid">
         <div class="wbox c"><div class="wlbl">CIDADÃOS</div><div class="wval" id="r-real">—</div></div>
-        <div class="wbox i"><div class="wlbl">IMPOSTOR</div><div class="wval" id="r-fake">—</div></div>
+        <div class="wbox i"><div class="wlbl">DICA IMPOSTOR</div><div class="wval" id="r-fake">—</div></div>
       </div>
       <div class="ctitle mt16">// os impostores eram</div>
       <ul class="plist" id="r-imps"></ul>
@@ -340,6 +340,7 @@
 <script>
 const SESSION_KEY = 'IMPOSTOR_SESSION';
 const POLL_MS = 1500;
+const AUTO_REJOIN = false;
 
 let G = {
   room: null,
@@ -740,11 +741,7 @@ function renderReveal() {
   if (G.tapped) {
     document.getElementById('rev-tap').style.display = 'none';
     document.getElementById('rev-badge').innerHTML = `<div class="rbdg ${isImp ? 'imp' : 'cid'}">${isImp ? '🔴 IMPOSTOR' : '🔵 CIDADAO'}</div>`;
-    if (isImp && r.hint) {
-      document.getElementById('rev-hint').innerHTML = `<div class="hintbox"><div class="hl">Dica para blefar</div><div class="ht">${r.hint}</div></div>`;
-    } else {
-      document.getElementById('rev-hint').innerHTML = '';
-    }
+    document.getElementById('rev-hint').innerHTML = '';
     document.getElementById('rev-btns').style.display = 'block';
     const btn = document.getElementById('btn-nxt');
     const alreadyReady = !!(r.revealReady || {})[G.meId];
@@ -959,20 +956,25 @@ async function aiWords(cat) {
 
 function fallback(cat) {
   const m = {
-    aleatorio: { wordReal: 'Guitarra', wordFake: 'Violao', hint: 'Tambem e um instrumento de cordas muito parecido' },
-    animais: { wordReal: 'Leao', wordFake: 'Tigre', hint: 'Tambem e um grande felino selvagem' },
-    comida: { wordReal: 'Pizza', wordFake: 'Calzone', hint: 'Tambem e massa com queijo e molho' },
-    filmes: { wordReal: 'Titanic', wordFake: 'Pearl Harbor', hint: 'Tambem e drama historico com romance' },
-    lugares: { wordReal: 'Paris', wordFake: 'Roma', hint: 'Tambem e capital europeia famosa' },
-    profissões: { wordReal: 'Medico', wordFake: 'Enfermeiro', hint: 'Tambem trabalha na area da saude' },
-    objetos: { wordReal: 'Tesoura', wordFake: 'Faca', hint: 'Tambem e utensilio cortante' },
-    desporto: { wordReal: 'Futebol', wordFake: 'Rugby', hint: 'Tambem e desporto de equipa com bola' }
+    aleatorio: { wordReal: 'Guitarra', hint: 'Pensa numa alternativa proxima, sem ser igual.' },
+    animais: { wordReal: 'Leao', hint: 'Mesmo universo natural, detalhe diferente.' },
+    comida: { wordReal: 'Pizza', hint: 'Algo que aparece na mesma conversa de mesa.' },
+    filmes: { wordReal: 'Titanic', hint: 'Atmosfera geral parecida, nome diferente.' },
+    lugares: { wordReal: 'Paris', hint: 'Contexto de viagem semelhante.' },
+    profissões: { wordReal: 'Medico', hint: 'Area profissional proxima.' },
+    objetos: { wordReal: 'Tesoura', hint: 'Finalidade pratica semelhante.' },
+    desporto: { wordReal: 'Futebol', hint: 'Dinamica desportiva parecida.' }
   };
   return m[cat] || m.aleatorio;
 }
 
 setupListeners();
-tryRejoin();
+if (AUTO_REJOIN) {
+  tryRejoin();
+} else {
+  clearSession();
+  nav('s-home');
+}
 </script>
 </body>
 </html>

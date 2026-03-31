@@ -241,7 +241,7 @@ export default async function handler(req, res) {
       if (room.players.length < 3) {
         return send(res, 409, { error: 'Minimo de 3 jogadores.' });
       }
-      if (!body.words || !body.words.wordReal || !body.words.wordFake) {
+      if (!body.words || !body.words.wordReal) {
         return send(res, 400, { error: 'Palavras invalidas para iniciar.' });
       }
 
