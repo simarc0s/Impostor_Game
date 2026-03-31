@@ -37,7 +37,7 @@
   label{display:block;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
   input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);font-family:'Syne',sans-serif;font-size:16px;padding:11px 14px;border-radius:10px;outline:none;transition:border-color .2s,background .2s;}
   input:focus{border-color:var(--accent3);background:rgba(0,229,255,.04);}
-  input[type=number]{-moz-appearance:textfield;}
+  input[type=number]{appearance:textfield;-moz-appearance:textfield;}
 
   /* BTNS */
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:10px;border:none;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .18s;text-transform:uppercase;letter-spacing:1px;}
@@ -265,7 +265,7 @@
         <div class="muted mb8">É a vez de:</div>
         <div class="pname2" id="pass-name">—</div>
         <div class="muted mt8 mb12">Não mostres a ninguém!</div>
-        <button class="btn b2" onclick="showReveal()">👁️ Ver a minha palavra</button>
+        <button class="btn b2" onclick="tapReveal()">👁️ Ver a minha palavra</button>
       </div>
     </div>
   </div>
@@ -282,7 +282,7 @@
         <div class="taphint" id="rev-tap">👆 Toca para revelar</div>
       </div>
       <div id="rev-btns" style="display:none">
-        <button class="btn bp full" id="btn-nxt" onclick="nextPlayer()">Próximo Jogador →</button>
+        <button class="btn bp full" id="btn-nxt" onclick="confirmRevealReady()">✅ Ja vi a minha palavra</button>
       </div>
     </div>
   </div>
@@ -338,163 +338,273 @@
 </div><!-- /wrap -->
 
 <script>
-// ─── STATE ────────────────────────────────
-const EMOJIS = ['🦊','🐺','🦅','🐉','🦁','🐯','🦈','🐻','🦝','🦋','🐙','🦄','🦩','🐸','🐨'];
-const BOTS   = ['Alex','Bruno','Carla','Diogo','Eva','Fábio','Gabi','Hugo','Íris','Jorge','Katia','Luís'];
+const SESSION_KEY = 'IMPOSTOR_SESSION';
+const POLL_MS = 1500;
 
 let G = {
-  room:null, code:null, me:null,
-  cat:'aleatório', idx:0, tapped:false, pick:null,
-  poll:null, busy:false
+  room: null,
+  code: null,
+  meId: null,
+  meName: null,
+  cat: 'aleatorio',
+  pick: null,
+  tapped: false,
+  busy: false,
+  poll: null,
+  pollFailCount: 0,
+  rejoining: false
 };
 
-function R(){ return G.room; }
+function R() {
+  return G.room;
+}
 
-// ─── API ─────────────────────────────────
+function myPlayer() {
+  const r = R();
+  if (!r || !G.meId) return null;
+  return r.players.find((p) => p.id === G.meId) || null;
+}
+
+function isHost() {
+  const r = R();
+  return !!(r && r.hostId === G.meId);
+}
+
+function saveSession() {
+  if (!G.code || !G.meId || !G.meName) return;
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ code: G.code, meId: G.meId, meName: G.meName }));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+  G.meId = null;
+  G.meName = null;
+}
+
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (!s.code || !s.meId || !s.meName) return;
+    G.code = s.code;
+    G.meId = s.meId;
+    G.meName = s.meName;
+  } catch {
+    clearSession();
+  }
+}
+
 async function apiRequest(url, opts = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
     ...opts
   });
-
   let data = null;
-  try { data = await res.json(); } catch { data = null; }
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
   if (!res.ok) {
-    const msg = data?.error || `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(data?.error || `HTTP ${res.status}`);
   }
   return data;
 }
 
-async function createRoom(room) {
-  return apiRequest('/api/room', {
+async function roomAction(action, extra = {}) {
+  if (!G.code) throw new Error('Sala indisponivel.');
+  const data = await apiRequest('/api/room', {
     method: 'POST',
-    body: JSON.stringify({ action: 'create', code: room.code, room })
+    body: JSON.stringify({ action, code: G.code, ...extra })
   });
-}
-
-async function joinRoom(code, name) {
-  return apiRequest('/api/room', {
-    method: 'POST',
-    body: JSON.stringify({ action: 'join', code, name })
-  });
-}
-
-async function saveRoom() {
-  if (!G.code || !G.room) return;
-  await apiRequest('/api/room', {
-    method: 'POST',
-    body: JSON.stringify({ action: 'save', code: G.code, room: G.room, actor: G.me })
-  });
+  if (data.room) {
+    G.room = data.room;
+    syncUI();
+  }
+  return data;
 }
 
 async function loadRoom(code) {
   return apiRequest('/api/room?code=' + encodeURIComponent(code));
 }
 
-function startLobbyPolling() {
-  if (G.poll || !G.code) return;
-  G.poll = setInterval(async () => {
-    try {
-      const data = await loadRoom(G.code);
-      if (data?.room) {
-        G.room = data.room;
-        if (document.getElementById('s-lobby').classList.contains('on')) {
-          renderLobby();
-        }
-      }
-    } catch (e) {
-      console.warn('Polling lobby falhou:', e.message);
-    }
-  }, 2000);
+function activeAlertId() {
+  const current = document.querySelector('.scr.on')?.id;
+  if (current === 's-create') return 'a-create';
+  if (current === 's-join') return 'a-join';
+  if (current === 's-vote') return 'a-vote';
+  return 'a-lobby';
 }
 
-function stopLobbyPolling() {
-  if (G.poll) {
-    clearInterval(G.poll);
-    G.poll = null;
+async function autoRejoinLobbyIfMissing(room) {
+  if (G.rejoining || !G.code || !G.meId || !G.meName) return room;
+  const exists = room.players.some((p) => p.id === G.meId);
+  if (exists) return room;
+  if (room.phase !== 'lobby') return room;
+
+  G.rejoining = true;
+  try {
+    const joined = await apiRequest('/api/room', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'join',
+        code: G.code,
+        name: G.meName,
+        playerId: G.meId
+      })
+    });
+    return joined.room || room;
+  } catch {
+    return room;
+  } finally {
+    G.rejoining = false;
   }
 }
 
-// ─── NAVIGATION ───────────────────────────
-function nav(id){
-  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
-  document.getElementById(id).classList.add('on');
-  if (id === 's-lobby') startLobbyPolling(); else stopLobbyPolling();
-  window.scrollTo({top:0,behavior:'smooth'});
+async function refreshRoomState() {
+  if (!G.code) return;
+  const data = await loadRoom(G.code);
+  G.pollFailCount = 0;
+  G.room = await autoRejoinLobbyIfMissing(data.room);
+
+  if (!myPlayer()) {
+    stopPolling();
+    clearSession();
+    G.room = null;
+    G.code = null;
+    nav('s-home');
+    return;
+  }
+
+  syncUI();
 }
 
-// ─── ALERTS ───────────────────────────────
-function showAlert(id, msg, type='e'){
+function nav(id) {
+  document.querySelectorAll('.scr').forEach((s) => s.classList.remove('on'));
+  const target = document.getElementById(id);
+  if (target) target.classList.add('on');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showAlert(id, msg, type = 'e') {
   const el = document.getElementById(id);
-  if(!el) return;
-  el.className = `al ${type==='e'?'ale':type==='i'?'ali':'als'} on`;
+  if (!el) return;
+  el.className = `al ${type === 'e' ? 'ale' : type === 'i' ? 'ali' : 'als'} on`;
   el.textContent = msg;
   clearTimeout(el._t);
-  el._t = setTimeout(()=>el.classList.remove('on'), 3600);
+  el._t = setTimeout(() => el.classList.remove('on'), 3600);
 }
 
-// ─── CHIPS ────────────────────────────────
-document.getElementById('chips').addEventListener('click', e=>{
-  const c = e.target.closest('.chip');
-  if(!c) return;
-  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
-  c.classList.add('on');
-  G.cat = c.dataset.v;
-});
-
-document.getElementById('j-code').addEventListener('input', function(){
-  this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
-});
-
-// ─── GENERATE CODE ────────────────────────
-function genCode(){
-  const ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s=''; for(let i=0;i<4;i++) s+=ch[Math.floor(Math.random()*ch.length)];
+function genCode() {
+  const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 4; i++) s += ch[Math.floor(Math.random() * ch.length)];
   return s;
 }
 
-// ─── CREATE ───────────────────────────────
-async function doCreate(){
+function genPlayerId() {
+  return `p_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+}
+
+function startPolling() {
+  if (G.poll || !G.code) return;
+  G.poll = setInterval(async () => {
+    try {
+      await refreshRoomState();
+    } catch (e) {
+      console.warn('Polling falhou:', e.message);
+      G.pollFailCount += 1;
+      if (G.pollFailCount % 4 === 0) {
+        showAlert(activeAlertId(), 'Ligacao instavel. A tentar reconectar...', 'i');
+      }
+    }
+  }, POLL_MS);
+}
+
+function stopPolling() {
+  if (!G.poll) return;
+  clearInterval(G.poll);
+  G.poll = null;
+}
+
+function setupListeners() {
+  document.getElementById('chips').addEventListener('click', (e) => {
+    const c = e.target.closest('.chip');
+    if (!c) return;
+    document.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+    c.classList.add('on');
+    G.cat = c.dataset.v;
+  });
+
+  document.getElementById('j-code').addEventListener('input', function() {
+    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && G.code) {
+      refreshRoomState().catch(() => {});
+    }
+  });
+}
+
+async function doCreate() {
   if (G.busy) return;
   const name = document.getElementById('c-name').value.trim();
-  const mp   = parseInt(document.getElementById('c-players').value)||4;
-  const mi   = parseInt(document.getElementById('c-impost').value)||1;
+  const mp = parseInt(document.getElementById('c-players').value, 10) || 4;
+  const mi = parseInt(document.getElementById('c-impost').value, 10) || 1;
 
-  if(!name)         return showAlert('a-create','Insere o teu nome!');
-  if(mp<3||mp>12)   return showAlert('a-create','Jogadores: 3 a 12');
-  if(mi<1||mi>=mp)  return showAlert('a-create','Impostores têm de ser menos que os jogadores');
+  if (!name) return showAlert('a-create', 'Insere o teu nome!');
+  if (mp < 3 || mp > 12) return showAlert('a-create', 'Jogadores: 3 a 12');
+  if (mi < 1 || mi >= mp) return showAlert('a-create', 'Impostores tem de ser menos que os jogadores');
 
   G.busy = true;
   try {
+    const meId = genPlayerId();
+    const meName = name.slice(0, 18);
     let created = null;
-    for (let i = 0; i < 6; i++) {
+
+    for (let i = 0; i < 8; i++) {
       const code = genCode();
       const room = {
-        code, host:name, maxP:mp, maxI:mi, cat:G.cat,
-        players:[{name, emoji:EMOJIS[0], isBot:false}],
-        phase:'lobby',
-        wordReal:null, wordFake:null, hint:null,
-        impostors:[], assigns:{}
+        code,
+        hostId: meId,
+        hostName: meName,
+        maxP: mp,
+        maxI: mi,
+        cat: G.cat,
+        players: [{ id: meId, name: meName, emoji: '🦊', isBot: false }],
+        phase: 'lobby',
+        wordReal: null,
+        wordFake: null,
+        hint: null,
+        impostors: [],
+        assigns: {},
+        revealReady: {},
+        votes: {},
+        result: null
       };
+
       try {
-        created = await createRoom(room);
+        created = await apiRequest('/api/room', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'create', code, room })
+        });
         break;
       } catch (e) {
-        if (!String(e.message).toLowerCase().includes('já existe')) throw e;
+        if (!String(e.message).toLowerCase().includes('existe')) throw e;
       }
     }
 
-    if (!created?.room) {
-      showAlert('a-create','Não consegui criar sala agora. Tenta de novo.');
-      return;
-    }
+    if (!created?.room) throw new Error('Nao foi possivel criar a sala.');
 
     G.code = created.code;
-    G.me = name;
+    G.meId = meId;
+    G.meName = meName;
     G.room = created.room;
-    renderLobby();
-    nav('s-lobby');
+    saveSession();
+    startPolling();
+    syncUI();
   } catch (e) {
     showAlert('a-create', e.message || 'Erro ao criar sala.');
   } finally {
@@ -502,23 +612,30 @@ async function doCreate(){
   }
 }
 
-// ─── JOIN ─────────────────────────────────
-async function doJoin(){
+async function doJoin() {
   if (G.busy) return;
   const name = document.getElementById('j-name').value.trim();
   const code = document.getElementById('j-code').value.toUpperCase().trim();
-
-  if(!name)          return showAlert('a-join','Insere o teu nome!');
-  if(code.length<4)  return showAlert('a-join','Código inválido (4 caracteres)');
+  if (!name) return showAlert('a-join', 'Insere o teu nome!');
+  if (code.length !== 4) return showAlert('a-join', 'Codigo invalido (4 caracteres)');
 
   G.busy = true;
   try {
-    const joined = await joinRoom(code, name);
+    const meId = G.meId || genPlayerId();
+    const meName = name.slice(0, 18);
+
+    const joined = await apiRequest('/api/room', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'join', code, name: meName, playerId: meId })
+    });
+
     G.code = code;
-    G.me = name;
+    G.meId = meId;
+    G.meName = meName;
     G.room = joined.room;
-    renderLobby();
-    nav('s-lobby');
+    saveSession();
+    startPolling();
+    syncUI();
   } catch (e) {
     showAlert('a-join', e.message || 'Erro ao entrar na sala.');
   } finally {
@@ -526,266 +643,324 @@ async function doJoin(){
   }
 }
 
-// ─── ADD BOT ──────────────────────────────
-async function addBot(){
-  const r = R();
-  if(!r) return;
-  if(r.players.length >= r.maxP) return showAlert('a-lobby','Sala cheia!');
-  if (G.me !== r.host) return showAlert('a-lobby','Só o host pode adicionar bots.');
-  const used = r.players.map(p=>p.name);
-  const avail = BOTS.filter(n=>!used.includes(n));
-  if(!avail.length) return;
-  const name = avail[Math.floor(Math.random()*avail.length)];
-  r.players.push({name, emoji:EMOJIS[r.players.length%EMOJIS.length], isBot:true});
-  saveRoom().catch(e => showAlert('a-lobby', e.message || 'Erro ao atualizar sala.'));
-  renderLobby();
+async function addBot() {
+  try {
+    await roomAction('add_bot', { actorId: G.meId });
+  } catch (e) {
+    showAlert('a-lobby', e.message || 'Erro ao adicionar bot.');
+  }
 }
 
-// ─── RENDER LOBBY ─────────────────────────
-function renderLobby(){
-  const r = R(); if(!r) return;
-  document.getElementById('l-code').textContent  = r.code;
+function renderLobby() {
+  const r = R();
+  if (!r) return;
+
+  document.getElementById('l-code').textContent = r.code;
   document.getElementById('l-count').textContent = `${r.players.length}/${r.maxP}`;
 
   const ul = document.getElementById('l-list');
   ul.innerHTML = '';
-  r.players.forEach(p=>{
-    const host = p.name===r.host;
+
+  r.players.forEach((p) => {
+    const host = p.id === r.hostId;
     const li = document.createElement('li');
     li.className = 'pitem';
-    li.innerHTML = `<div class="avi" style="background:${host?'rgba(255,184,0,.15)':'rgba(255,255,255,.06)'}">${p.emoji}</div>
-      <div class="pnm">${p.name}${p.isBot?' 🤖':''}</div>
-      <div class="pbdg ${host?'host':''}">${host?'HOST':'JOGADOR'}</div>`;
+    li.innerHTML = `<div class="avi" style="background:${host ? 'rgba(255,184,0,.15)' : 'rgba(255,255,255,.06)'}">${p.emoji}</div>
+      <div class="pnm">${p.name}${p.isBot ? ' 🤖' : ''}${p.id === G.meId ? ' (tu)' : ''}</div>
+      <div class="pbdg ${host ? 'host' : ''}">${host ? 'HOST' : 'JOGADOR'}</div>`;
     ul.appendChild(li);
   });
 
-  const isHost = G.me === r.host;
   const canStart = r.players.length >= 3;
-  document.getElementById('btn-start').style.display = (isHost&&canStart) ? 'flex' : 'none';
-  document.getElementById('l-wait').style.display    = (isHost&&canStart) ? 'none' : 'block';
+  const host = isHost();
+  const btnStart = document.getElementById('btn-start');
+  btnStart.style.display = host ? 'flex' : 'none';
+  btnStart.disabled = !canStart;
+
+  const wait = document.getElementById('l-wait');
+  if (!host) {
+    wait.style.display = 'block';
+    wait.textContent = 'A aguardar o host iniciar...';
+  } else if (!canStart) {
+    wait.style.display = 'block';
+    wait.textContent = 'Minimo de 3 jogadores para iniciar.';
+  } else {
+    wait.style.display = 'none';
+  }
 }
 
-// ─── START ────────────────────────────────
-async function doStart(){
-  const r = R(); if(!r) return;
-  if (G.me !== r.host) return showAlert('a-lobby','Só o host pode iniciar.');
+async function doStart() {
+  if (!isHost()) return showAlert('a-lobby', 'So o host pode iniciar.');
   nav('s-gen');
 
   let words;
   try {
-    words = await aiWords(r.cat);
-  } catch(e) {
-    console.warn('Gerador falhou, usando fallback:', e);
-    words = fallback(r.cat);
+    words = await aiWords(R().cat || 'aleatorio');
+  } catch (e) {
+    words = fallback(R().cat || 'aleatorio');
   }
 
-  r.wordReal = words.wordReal;
-  r.wordFake = words.wordFake;
-  r.hint     = words.hint;
-
-  // Assign impostors
-  const names    = r.players.map(p=>p.name);
-  const shuffled = shuffle([...names]);
-  r.impostors    = shuffled.slice(0, r.maxI);
-
-  // Assign words
-  r.assigns = {};
-  names.forEach(n => { r.assigns[n] = r.impostors.includes(n) ? r.wordFake : r.wordReal; });
-
-  r.phase = 'reveal';
-  G.idx   = 0;
-  await saveRoom();
-  showPass();
+  try {
+    await roomAction('start', { actorId: G.meId, words });
+  } catch (e) {
+    showAlert('a-lobby', e.message || 'Erro ao iniciar jogo.');
+    nav('s-lobby');
+  }
 }
 
-// ─── PASS SCREEN ──────────────────────────
-function showPass(){
+function renderReveal() {
   const r = R();
-  const p = r.players[G.idx];
-  document.getElementById('pass-name').textContent = p.name + (p.isBot?' 🤖':'');
-  G.tapped = false;
-  nav('s-pass');
-}
+  const me = myPlayer();
+  if (!r || !me) return;
 
-// ─── REVEAL SCREEN ────────────────────────
-function showReveal(){
-  const r = R();
-  const p = r.players[G.idx];
-  const isImp = r.impostors.includes(p.name);
-  const word  = r.assigns[p.name];
+  const isImp = (r.impostors || []).includes(me.id);
+  const word = (r.assigns || {})[me.id] || '---';
+  const readyCount = Object.keys(r.revealReady || {}).length;
   const total = r.players.length;
 
-  G.tapped = false;
+  document.getElementById('rev-name').textContent = `${me.name} (tu)`;
+  document.getElementById('rev-prog').style.width = `${(readyCount / total) * 100}%`;
 
-  document.getElementById('rev-name').textContent   = p.name + (p.isBot?' 🤖':'');
-  document.getElementById('rev-prog').style.width   = `${(G.idx/total)*100}%`;
+  const wordEl = document.getElementById('rev-word');
+  wordEl.textContent = word;
+  wordEl.className = `bigw ${G.tapped ? '' : 'blur'} ${isImp ? 'iword' : 'cword'}`;
 
-  const wEl = document.getElementById('rev-word');
-  wEl.textContent = word;
-  wEl.className   = `bigw blur ${isImp?'iword':'cword'}`;
-
-  document.getElementById('rev-badge').innerHTML = '';
-  document.getElementById('rev-hint').innerHTML  = '';
-  document.getElementById('rev-tap').style.display  = 'block';
-  document.getElementById('rev-btns').style.display = 'none';
-
-  nav('s-reveal');
-}
-
-function tapReveal(){
-  if(G.tapped) return;
-  G.tapped = true;
-
-  const r    = R();
-  const p    = r.players[G.idx];
-  const isImp = r.impostors.includes(p.name);
-
-  document.getElementById('rev-word').classList.remove('blur');
-  document.getElementById('rev-tap').style.display = 'none';
-
-  document.getElementById('rev-badge').innerHTML = `
-    <div class="rbdg ${isImp?'imp':'cid'}">${isImp?'🔴 IMPOSTOR':'🔵 CIDADÃO'}</div>`;
-
-  if(isImp && r.hint){
-    document.getElementById('rev-hint').innerHTML = `
-      <div class="hintbox">
-        <div class="hl">💡 Dica para blefar</div>
-        <div class="ht">${r.hint}</div>
-      </div>`;
-  }
-
-  document.getElementById('rev-btns').style.display = 'block';
-  const isLast = G.idx >= r.players.length - 1;
-  document.getElementById('btn-nxt').textContent = isLast ? '✅ Iniciar Discussão' : 'Próximo Jogador →';
-}
-
-function nextPlayer(){
-  const r = R();
-  G.idx++;
-  if(G.idx >= r.players.length){
-    document.getElementById('d-np').textContent = r.players.length;
-    document.getElementById('d-ni').textContent = r.maxI;
-    nav('s-disc');
+  if (G.tapped) {
+    document.getElementById('rev-tap').style.display = 'none';
+    document.getElementById('rev-badge').innerHTML = `<div class="rbdg ${isImp ? 'imp' : 'cid'}">${isImp ? '🔴 IMPOSTOR' : '🔵 CIDADAO'}</div>`;
+    if (isImp && r.hint) {
+      document.getElementById('rev-hint').innerHTML = `<div class="hintbox"><div class="hl">Dica para blefar</div><div class="ht">${r.hint}</div></div>`;
+    } else {
+      document.getElementById('rev-hint').innerHTML = '';
+    }
+    document.getElementById('rev-btns').style.display = 'block';
+    const btn = document.getElementById('btn-nxt');
+    const alreadyReady = !!(r.revealReady || {})[G.meId];
+    btn.textContent = alreadyReady ? 'A aguardar restantes jogadores...' : '✅ Ja vi a minha palavra';
+    btn.disabled = alreadyReady;
+    btn.onclick = confirmRevealReady;
   } else {
-    showPass();
+    document.getElementById('rev-badge').innerHTML = '';
+    document.getElementById('rev-hint').innerHTML = '';
+    document.getElementById('rev-tap').style.display = 'block';
+    document.getElementById('rev-btns').style.display = 'none';
   }
 }
 
-// ─── GO VOTE ──────────────────────────────
-function goVote(){
-  buildVoteList();
-  nav('s-vote');
+function tapReveal() {
+  if (G.tapped) return;
+  G.tapped = true;
+  renderReveal();
 }
 
-// ─── VOTE ─────────────────────────────────
-function buildVoteList(){
-  const r = R();
-  G.pick = null;
-  document.getElementById('btn-vote').disabled = true;
+async function confirmRevealReady() {
+  try {
+    await roomAction('reveal_ready', { actorId: G.meId });
+  } catch (e) {
+    showAlert('a-lobby', e.message || 'Erro ao confirmar palavra.');
+  }
+}
 
-  const ul = document.getElementById('vote-list');
-  ul.innerHTML = '';
-  r.players.forEach(p=>{
+function renderDiscussion() {
+  const r = R();
+  if (!r) return;
+  document.getElementById('d-np').textContent = r.players.length;
+  document.getElementById('d-ni').textContent = r.maxI;
+
+  const btn = document.querySelector('#s-disc .btn.bp.full');
+  if (isHost()) {
+    btn.disabled = false;
+    btn.textContent = '🗳️ Abrir Votacao';
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'A aguardar host abrir votacao...';
+  }
+}
+
+async function goVote() {
+  if (!isHost()) return;
+  try {
+    await roomAction('open_vote', { actorId: G.meId });
+  } catch (e) {
+    showAlert('a-lobby', e.message || 'Erro ao abrir votacao.');
+  }
+}
+
+function buildVoteList() {
+  const r = R();
+  const me = myPlayer();
+  if (!r || !me) return;
+
+  const list = document.getElementById('vote-list');
+  list.innerHTML = '';
+
+  const status = document.createElement('div');
+  status.className = 'al ali on';
+  const votedCount = Object.keys(r.votes || {}).length;
+  const totalHumans = r.players.filter((p) => !p.isBot).length;
+  status.textContent = `Votacao anonima em curso: ${votedCount}/${totalHumans} votos recebidos`;
+  list.appendChild(status);
+
+  r.players.filter((p) => p.id !== me.id).forEach((p) => {
     const div = document.createElement('div');
     div.className = 'vitem';
-    div.dataset.n = p.name;
+    div.dataset.id = p.id;
     div.innerHTML = `<div class="vchk"></div>
       <div class="avi" style="background:rgba(255,255,255,.05)">${p.emoji}</div>
-      <div class="pnm">${p.name}${p.isBot?' 🤖':''}</div>`;
-    div.addEventListener('click', ()=>pickVote(p.name));
-    ul.appendChild(div);
+      <div class="pnm">${p.name}${p.isBot ? ' 🤖' : ''}</div>`;
+    div.addEventListener('click', () => pickVote(p.id));
+    list.appendChild(div);
   });
+
+  const already = (r.votes || {})[G.meId];
+  if (already) {
+    G.pick = already;
+    document.getElementById('btn-vote').disabled = true;
+    document.getElementById('btn-vote').textContent = 'Voto enviado anonimamente';
+  } else {
+    G.pick = null;
+    document.getElementById('btn-vote').disabled = true;
+    document.getElementById('btn-vote').textContent = '✅ Confirmar Voto';
+  }
 }
 
-function pickVote(name){
-  G.pick = name;
-  document.querySelectorAll('.vitem').forEach(el=>{
-    const s = el.dataset.n === name;
-    el.classList.toggle('sel', s);
-    el.querySelector('.vchk').textContent = s ? '✓' : '';
+function pickVote(playerId) {
+  const r = R();
+  if ((r.votes || {})[G.meId]) return;
+  G.pick = playerId;
+  document.querySelectorAll('.vitem').forEach((el) => {
+    const selected = el.dataset.id === playerId;
+    el.classList.toggle('sel', selected);
+    const chk = el.querySelector('.vchk');
+    if (chk) chk.textContent = selected ? '✓' : '';
   });
   document.getElementById('btn-vote').disabled = false;
 }
 
-function confirmVote(){
-  if(!G.pick) return showAlert('a-vote','Seleciona um jogador!');
-  const r    = R();
-  const isImp = r.impostors.includes(G.pick);
-  showResult(isImp);
+async function confirmVote() {
+  if (!G.pick) return showAlert('a-vote', 'Seleciona um jogador!');
+  try {
+    await roomAction('cast_vote', { actorId: G.meId, targetId: G.pick });
+  } catch (e) {
+    showAlert('a-vote', e.message || 'Erro ao votar.');
+  }
 }
 
-// ─── RESULT ───────────────────────────────
-function showResult(isImp){
+function renderResult() {
   const r = R();
+  if (!r) return;
+  const res = r.result || {};
   const hero = document.getElementById('res-hero');
 
-  hero.innerHTML = isImp
-    ? `<div class="ricon">🎉</div>
-       <div class="rtitle" style="color:var(--green)">APANHADO!</div>
-       <div class="rsub">${G.pick} era mesmo o impostor!</div>
-       <div class="tag tg">Os Cidadãos venceram 🏆</div>`
-    : `<div class="ricon">😈</div>
-       <div class="rtitle" style="color:var(--accent)">ENGANADOS!</div>
-       <div class="rsub">${G.pick} era inocente. O impostor escapou!</div>
-       <div class="tag tr">O Impostor venceu 😈</div>`;
+  let sub = 'Houve empate, ninguem foi eliminado.';
+  if (res.eliminatedId) {
+    const eliminated = r.players.find((p) => p.id === res.eliminatedId);
+    sub = `${eliminated ? eliminated.name : 'Jogador'} recebeu mais votos.`;
+  }
+
+  hero.innerHTML = res.impostorCaught
+    ? `<div class="ricon">🎉</div><div class="rtitle" style="color:var(--green)">IMPOSTOR APANHADO</div><div class="rsub">${sub}</div><div class="tag tg">Cidadaos venceram</div>`
+    : `<div class="ricon">😈</div><div class="rtitle" style="color:var(--accent)">IMPOSTOR ESCAPOU</div><div class="rsub">${sub}</div><div class="tag tr">Impostor venceu</div>`;
 
   document.getElementById('r-real').textContent = r.wordReal || '—';
   document.getElementById('r-fake').textContent = r.wordFake || '—';
 
   const ul = document.getElementById('r-imps');
   ul.innerHTML = '';
-  r.impostors.forEach(name=>{
-    const p  = r.players.find(x=>x.name===name)||{emoji:'🔴'};
+  (r.impostors || []).forEach((id) => {
+    const p = r.players.find((x) => x.id === id) || { name: 'Desconhecido', emoji: '🔴' };
     const li = document.createElement('li');
     li.className = 'pitem';
-    li.innerHTML = `<div class="avi" style="background:rgba(255,60,95,.15)">${p.emoji}</div>
-      <div class="pnm">${name}</div>
-      <div class="pbdg imp">IMPOSTOR</div>`;
+    li.innerHTML = `<div class="avi" style="background:rgba(255,60,95,.15)">${p.emoji}</div><div class="pnm">${p.name}</div><div class="pbdg imp">IMPOSTOR</div>`;
     ul.appendChild(li);
   });
-
-  nav('s-result');
 }
 
-// ─── PLAY AGAIN ───────────────────────────
-function playAgain(){
+async function playAgain() {
+  if (!isHost()) return showAlert('a-lobby', 'So o host pode recomecar.');
+  try {
+    await roomAction('play_again', { actorId: G.meId });
+  } catch (e) {
+    showAlert('a-lobby', e.message || 'Erro ao recomecar.');
+  }
+}
+
+function syncUI() {
   const r = R();
-  if(!r){ nav('s-home'); return; }
-  r.phase='lobby'; r.wordReal=null; r.wordFake=null; r.hint=null;
-  r.impostors=[]; r.assigns={};
-  G.idx=0; G.pick=null;
-  saveRoom().catch(() => {});
-  renderLobby();
-  nav('s-lobby');
+  if (!r) return;
+
+  if (!myPlayer()) {
+    stopPolling();
+    clearSession();
+    G.room = null;
+    G.code = null;
+    nav('s-home');
+    return;
+  }
+
+  switch (r.phase) {
+    case 'lobby':
+      G.tapped = false;
+      renderLobby();
+      nav('s-lobby');
+      break;
+    case 'reveal':
+      renderReveal();
+      nav('s-reveal');
+      break;
+    case 'discussion':
+      renderDiscussion();
+      nav('s-disc');
+      break;
+    case 'vote':
+      buildVoteList();
+      nav('s-vote');
+      break;
+    case 'result':
+      renderResult();
+      nav('s-result');
+      break;
+    default:
+      renderLobby();
+      nav('s-lobby');
+      break;
+  }
 }
 
-// ─── AI WORDS ─────────────────────────────
-async function aiWords(cat){
+async function tryRejoin() {
+  restoreSession();
+  if (!G.code || !G.meId || !G.meName) return;
+
+  try {
+    await refreshRoomState();
+    startPolling();
+  } catch {
+    clearSession();
+  }
+}
+
+async function aiWords(cat) {
   const res = await fetch('/api/words?category=' + encodeURIComponent(cat));
-  if(!res.ok) throw new Error('HTTP '+res.status);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
 
-// ─── FALLBACK ─────────────────────────────
-function fallback(cat){
+function fallback(cat) {
   const m = {
-    aleatório:  {wordReal:'Guitarra',  wordFake:'Violão',      hint:'Também és um instrumento de cordas muito usado no Brasil, forma parecida'},
-    animais:    {wordReal:'Leão',      wordFake:'Tigre',        hint:'Também és um grande felino selvagem, muito feroz e poderoso'},
-    comida:     {wordReal:'Pizza',     wordFake:'Calzone',      hint:'Também és feito de massa, queijo e molho, mas dobrado ao meio'},
-    filmes:     {wordReal:'Titanic',   wordFake:'Pearl Harbor', hint:'Também és um drama de amor numa tragédia histórica devastadora'},
-    lugares:    {wordReal:'Paris',     wordFake:'Roma',         hint:'Também és uma capital europeia famosa por monumentos e gastronomia'},
-    profissões: {wordReal:'Médico',    wordFake:'Enfermeiro',   hint:'Também trabalhas na saúde, cuidas de doentes em hospitais'},
-    objetos:    {wordReal:'Tesoura',   wordFake:'Faca',         hint:'Também és um utensílio cortante de metal usado no dia-a-dia'},
-    desporto:   {wordReal:'Futebol',   wordFake:'Rugby',        hint:'Também és um desporto de equipa com bola onde se marca pontos'},
+    aleatorio: { wordReal: 'Guitarra', wordFake: 'Violao', hint: 'Tambem e um instrumento de cordas muito parecido' },
+    animais: { wordReal: 'Leao', wordFake: 'Tigre', hint: 'Tambem e um grande felino selvagem' },
+    comida: { wordReal: 'Pizza', wordFake: 'Calzone', hint: 'Tambem e massa com queijo e molho' },
+    filmes: { wordReal: 'Titanic', wordFake: 'Pearl Harbor', hint: 'Tambem e drama historico com romance' },
+    lugares: { wordReal: 'Paris', wordFake: 'Roma', hint: 'Tambem e capital europeia famosa' },
+    profissões: { wordReal: 'Medico', wordFake: 'Enfermeiro', hint: 'Tambem trabalha na area da saude' },
+    objetos: { wordReal: 'Tesoura', wordFake: 'Faca', hint: 'Tambem e utensilio cortante' },
+    desporto: { wordReal: 'Futebol', wordFake: 'Rugby', hint: 'Tambem e desporto de equipa com bola' }
   };
-  return m[cat]||m['aleatório'];
+  return m[cat] || m.aleatorio;
 }
 
-// ─── SHUFFLE ──────────────────────────────
-function shuffle(a){
-  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
-  return a;
-}
+setupListeners();
+tryRejoin();
 </script>
 </body>
 </html>
