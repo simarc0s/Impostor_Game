@@ -330,7 +330,7 @@
       <div class="ctitle mt16">// os impostores eram</div>
       <ul class="plist" id="r-imps"></ul>
       <div class="row mt20">
-        <button class="btn bs" onclick="nav('s-home')">🏠 Início</button>
+        <button class="btn bs" onclick="leaveToHome()">🏠 Início</button>
         <button class="btn b2" onclick="playAgain()">🔄 Jogar Novamente</button>
       </div>
     </div>
@@ -481,10 +481,22 @@ async function refreshRoomState() {
 }
 
 function nav(id) {
+  const current = document.querySelector('.scr.on')?.id;
+  if (current === id) return;
   document.querySelectorAll('.scr').forEach((s) => s.classList.remove('on'));
   const target = document.getElementById(id);
   if (target) target.classList.add('on');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function leaveToHome() {
+  stopPolling();
+  clearSession();
+  G.room = null;
+  G.code = null;
+  G.pick = null;
+  G.tapped = false;
+  nav('s-home');
 }
 
 function showAlert(id, msg, type = 'e') {

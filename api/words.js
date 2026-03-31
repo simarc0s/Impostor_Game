@@ -50,6 +50,82 @@ const WORD_PAIRS = {
   ],
 };
 
+const VAGUE_HINTS = {
+  aleatório: [
+    'Esta palavra fica perto da ideia certa, mas por outro caminho.',
+    'Pensa numa alternativa comum no mesmo universo.',
+    'Nao e oposto, nao e igual: e da mesma familia.'
+  ],
+  animais: [
+    'Move-se no mesmo tipo de habitat em muitos casos.',
+    'Partilha alguns comportamentos observaveis.',
+    'Pensa em algo do mesmo grupo geral.'
+  ],
+  comida: [
+    'Aparece em contextos de refeicao parecidos.',
+    'A sensacao geral pode ser parecida para muita gente.',
+    'Costuma viver na mesma conversa de mesa.'
+  ],
+  filmes: [
+    'Evoca uma experiencia de genero semelhante.',
+    'Tem atmosfera que pode confundir numa descricao curta.',
+    'Cabe no mesmo tipo de recomendacao informal.'
+  ],
+  lugares: [
+    'Tem funcao ou papel parecido em certos roteiros.',
+    'Partilha contexto geografico ou cultural amplo.',
+    'Muitas pessoas associam ao mesmo tipo de viagem.'
+  ],
+  profissões: [
+    'Atua numa area profissional muito proxima.',
+    'Pode aparecer no mesmo ambiente de trabalho.',
+    'Muda o detalhe, mantem o contexto.'
+  ],
+  objetos: [
+    'Serve para uso cotidiano em situacao semelhante.',
+    'Tem finalidade parecida vista de longe.',
+    'Nao e o mesmo objeto, mas cumpre papel proximo.'
+  ],
+  desporto: [
+    'Partilha dinamica geral de jogo ou pratica.',
+    'Pode confundir quando descrito em poucas palavras.',
+    'Costuma surgir no mesmo tipo de conversa desportiva.'
+  ]
+};
+
+function randomIndex(max) {
+  if (max <= 0) return 0;
+  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
+    const arr = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(arr);
+    return arr[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
+function normalizeCategory(category) {
+  if (!category) return 'aleatório';
+  if (category === 'aleatorio') return 'aleatório';
+  if (category === 'profissoes') return 'profissões';
+  return category;
+}
+
+function allPairs() {
+  return Object.values(WORD_PAIRS).flat();
+}
+
+function pickPair(category) {
+  const normalized = normalizeCategory(category);
+  const pool = normalized === 'aleatório' ? allPairs() : (WORD_PAIRS[normalized] || WORD_PAIRS['aleatório']);
+  return pool[randomIndex(pool.length)];
+}
+
+function pickVagueHint(category) {
+  const normalized = normalizeCategory(category);
+  const hints = VAGUE_HINTS[normalized] || VAGUE_HINTS['aleatório'];
+  return hints[randomIndex(hints.length)];
+}
+
 export default function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -68,10 +144,10 @@ export default function handler(req, res) {
     return res.status(400).json({ error: 'category required' });
   }
 
-  const pairs = WORD_PAIRS[category] || WORD_PAIRS['aleatório'];
-  
-  // Seleciona um par aleatório
-  const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
-
-  return res.status(200).json(randomPair);
+  const pair = pickPair(category);
+  return res.status(200).json({
+    wordReal: pair.wordReal,
+    wordFake: pair.wordFake,
+    hint: pickVagueHint(category)
+  });
 }
